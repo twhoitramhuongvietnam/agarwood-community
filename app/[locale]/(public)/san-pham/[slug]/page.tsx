@@ -50,7 +50,7 @@ const getProductBySlug = cache(async (slug: string) =>
         where: { status: "APPROVED" },
         orderBy: { approvedAt: "desc" },
         take: 1,
-        select: { id: true, approvedAt: true, reviewMode: true },
+        select: { id: true, certCode: true, approvedAt: true, reviewMode: true },
       },
       // Phase 4 (2026-04-29): post linked qua Product.postId — cần fields
       // status/isPromoted/newsCategories/category cho ProductActionsMenu
@@ -284,10 +284,17 @@ export default async function ProductDetailPage({ params }: Props) {
                 <div className="flex items-start gap-3 text-sm">
                   <span className="shrink-0 w-36 text-neutral-500 text-xs uppercase tracking-wide pt-0.5">Chứng nhận:</span>
                   <span className="flex-1 text-neutral-800">
-                    <span className="inline-flex items-center gap-1 font-medium text-amber-800">
+                    {/* Click → trang xác minh chứng nhận. Ưu tiên certCode chính
+                        thức (HTHVN-YYYY-NNNN); fallback slug cho cert legacy
+                        chưa có certCode. */}
+                    <Link
+                      href={`/verify/${approvedCert?.certCode ?? product.slug}`}
+                      title="Xem chứng nhận chính thức"
+                      className="inline-flex items-center gap-1 font-medium text-amber-800 underline-offset-2 hover:underline hover:text-amber-900"
+                    >
                       <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-600 text-white text-[10px] font-bold">✓</span>
                       Hội Trầm Hương Việt Nam
-                    </span>
+                    </Link>
                     {certDate && (
                       <span className="ml-1 text-xs text-neutral-500">— Cấp {certDate}</span>
                     )}
