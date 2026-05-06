@@ -173,6 +173,19 @@ export type MembershipInfo = {
   company: { name: string; slug: string } | null
 }
 
+/** Quota tháng cho 1 user — `limit=-1` nghĩa unlimited (Gold/Admin/Infinite/PoC),
+ *  UI sẽ ẩn progress bar. `resetAt` là ISO string đầu tháng tiếp theo. */
+export type QuotaSlot = {
+  used: number
+  limit: number
+  resetAt: string
+}
+export type QuotaInfo = {
+  posts: QuotaSlot
+  products: QuotaSlot
+  banners: QuotaSlot
+}
+
 type FeedClientProps = {
   initialPosts: Post[]
   /** Tab được chọn khi mount — match với filter đã dùng ở server-side query.
@@ -189,6 +202,7 @@ type FeedClientProps = {
   tierIndSilver?: number
   tierIndGold?: number
   topContributors: TopContributor[]
+  quotaInfo: QuotaInfo | null
   sidebarBannersSlot: ReactNode
 }
 
@@ -971,6 +985,88 @@ function MembershipCard({ info, now }: { info: MembershipInfo; now: number }) {
   )
 }
 
+// ── Quota Card ───────────────────────────────────────────────────────────────
+
+/** Hạn mức tháng — informational only, KHÔNG enforce ở UI.
+ *
+ *  Lưu ý: project đang ở PoC mode (lib/poc-mode.ts default ON, env
+ *  POC_UNLIMITED_POSTS=1) → server trả `limit=-1` cho mọi user. Card vẫn
+ *  hiện stat "đã đăng" để user biết hoạt động của mình; chỉ render progress
+ *  bar khi limit dương (post-PoC). Server enforce qua API, UI chỉ là gợi ý —
+ *  không disable submit để tránh accidental enforcement nhầm trong PoC. */
+function QuotaCard({ quota, now }: { quota: QuotaInfo; now: number }) {
+  // Reset = đầu tháng tiếp theo. Hiển thị days remaining để user planning.
+  const resetMs = new Date(quota.posts.resetAt).getTime()
+  const daysToReset = now ? Math.max(0, Math.ceil((resetMs - now) / 86400000)) : 0
+
+  // Upsell chỉ relevant khi limit thực sự enforce (limit > 0) và gần đầy.
+  // PoC mode → cả 3 limit=-1 → không gợi ý nâng hạng (đỡ noise).
+  const showUpsell =
+    (quota.posts.limit > 0 && quota.posts.used / quota.posts.limit >= 0.8) ||
+    (quota.products.limit > 0 && quota.products.used / quota.products.limit >= 0.8) ||
+    (quota.banners.limit > 0 && quota.banners.used / quota.banners.limit >= 0.8)
+
+  return (
+    <div className="bg-white rounded-xl border border-brand-200 p-4 space-y-3" suppressHydrationWarning>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-brand-900">Hoạt động tháng này</h3>
+        {now > 0 && (
+          <span className="text-[11px] text-brand-500">Reset sau {daysToReset}d</span>
+        )}
+      </div>
+      <QuotaBar label="Bài đăng" slot={quota.posts} />
+      <QuotaBar label="Sản phẩm" slot={quota.products} />
+      <QuotaBar label="Banner QC" slot={quota.banners} />
+      {showUpsell && (
+        <Link
+          href="/dich-vu"
+          className="block text-center text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg py-1.5 hover:bg-amber-100"
+        >
+          Nâng hạng để tăng quota →
+        </Link>
+      )}
+    </div>
+  )
+}
+
+function QuotaBar({ label, slot }: { label: string; slot: QuotaSlot }) {
+  // limit=-1 (PoC / Gold / Admin / Infinite): chỉ hiện count đã dùng — không
+  // có thanh tiến trình vì không có ngưỡng để compare.
+  if (slot.limit === -1) {
+    return (
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-brand-700">{label}</span>
+        <span className="font-semibold text-emerald-700 tabular-nums">
+          {slot.used} <span className="text-brand-400 font-normal">· ∞</span>
+        </span>
+      </div>
+    )
+  }
+  const limit = Math.max(slot.limit, 1)
+  const pct = Math.min(100, Math.round((slot.used / limit) * 100))
+  const isFull = slot.used >= slot.limit
+  const isNear = pct >= 80
+  const barColor = isFull ? "bg-red-500" : isNear ? "bg-amber-500" : "bg-emerald-500"
+  const textColor = isFull ? "text-red-600" : isNear ? "text-amber-700" : "text-brand-800"
+
+  return (
+    <div>
+      <div className="flex items-center justify-between text-xs mb-1">
+        <span className="text-brand-700">{label}</span>
+        <span className={cn("font-semibold tabular-nums", textColor)}>
+          {slot.used}/{slot.limit}
+        </span>
+      </div>
+      <div className="h-1.5 bg-brand-100 rounded-full overflow-hidden">
+        <div
+          className={cn("h-full transition-all duration-300", barColor)}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
 // ── Main Component ───────────────────────────────────────────────────────────
 
 export function FeedClient({
@@ -982,6 +1078,7 @@ export function FeedClient({
   currentUserAvatarUrl,
   membershipInfo,
   topContributors,
+  quotaInfo,
   sidebarBannersSlot,
   tierSilver,
   tierGold,
@@ -1437,6 +1534,7 @@ export function FeedClient({
         ) : (
           <>
             {membershipInfo && <MembershipCard info={membershipInfo} now={now} />}
+            {quotaInfo && <QuotaCard quota={quotaInfo} now={now} />}
           </>
         )}
 

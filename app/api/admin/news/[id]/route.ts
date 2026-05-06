@@ -12,6 +12,7 @@ import {
   destroyCloudinaryByPublicIds,
 } from "@/lib/cloudinary-server"
 import { autoTranslateNewsMissing } from "@/lib/news-auto-translate"
+import { creditNewsRoyaltyOnPublish } from "@/lib/news-royalty"
 
 // Kéo lên 5 phút để `after()` auto-translate có đủ budget cho bài dài
 // (content 10k chars × 3 locale). Vercel Pro/Hobby đều cho maxDuration=300s.
@@ -342,6 +343,25 @@ export async function PATCH(
   data.seoScoreDetail = seoResult as unknown as object
 
   const news = await prisma.news.update({ where: { id }, data })
+
+  // Bài chuyển từ draft (hoặc đã unpublish) sang public lần đầu → cộng
+  // tiền nhuận bút cho tác giả. Helper idempotent: dùng marker [news:{id}]
+  // trong reason để skip nếu đã credit trước đó (vd unpublish rồi publish
+  // lại không trả lần 2). Lỗi credit không revert news update — log riêng.
+  if (!current.isPublished && news.isPublished) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        await creditNewsRoyaltyOnPublish(tx, {
+          newsId: news.id,
+          authorId: news.authorId,
+          title: news.title,
+          createdByAdminId: session.user!.id!,
+        })
+      })
+    } catch (e) {
+      console.error(`[news/${id}] royalty credit failed:`, e)
+    }
+  }
 
   // Bài đã publish hoặc vừa publish lần đầu → cần invalidate mọi public
   // surface. Nếu draft-before + draft-after → content chưa bao giờ ra ngoài,

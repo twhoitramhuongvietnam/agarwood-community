@@ -4,6 +4,9 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getTierThresholds } from "@/lib/tier"
 import { getSortedFeedPostIds } from "@/lib/feed-sort"
+import { getQuotaUsage } from "@/lib/quota"
+import { getProductQuotaUsage } from "@/lib/product-quota"
+import { getBannerQuotaUsage } from "@/lib/bannerQuota"
 import { FeedClient } from "./FeedClient"
 import { SidebarBanners, SidebarBannersSkeleton } from "./SidebarBanners"
 
@@ -195,9 +198,9 @@ export default async function FeedPage({
     }
   })
 
-  // Sidebar data — membershipInfo per-user (không cache được); topContributors
-  // dùng cache 10 phút chung cho mọi viewer.
-  const [membershipInfo, topContributors] = await Promise.all([
+  // Sidebar data — membershipInfo + quota per-user (không cache được);
+  // topContributors dùng cache 10 phút chung cho mọi viewer.
+  const [membershipInfo, topContributors, postQuota, productQuota, bannerQuota] = await Promise.all([
     userId
       ? prisma.user.findUnique({
           where: { id: userId },
@@ -205,7 +208,30 @@ export default async function FeedPage({
         })
       : null,
     getTopContributors(),
+    userId ? getQuotaUsage(userId) : null,
+    userId ? getProductQuotaUsage(userId) : null,
+    userId ? getBannerQuotaUsage(userId) : null,
   ])
+
+  const quotaInfo = postQuota && productQuota && bannerQuota
+    ? {
+        posts: {
+          used: postQuota.used,
+          limit: postQuota.limit,
+          resetAt: postQuota.resetAt.toISOString(),
+        },
+        products: {
+          used: productQuota.used,
+          limit: productQuota.limit,
+          resetAt: productQuota.resetAt.toISOString(),
+        },
+        banners: {
+          used: bannerQuota.used,
+          limit: bannerQuota.limit,
+          resetAt: bannerQuota.resetAt.toISOString(),
+        },
+      }
+    : null
 
   const [bizTier, indTier] = await Promise.all([
     getTierThresholds("BUSINESS"),
@@ -236,6 +262,7 @@ export default async function FeedPage({
           : null
       }
       topContributors={topContributors}
+      quotaInfo={quotaInfo}
       sidebarBannersSlot={
         <Suspense key="sidebar-banners" fallback={<SidebarBannersSkeleton key="sidebar-banners-fallback" />}>
           <SidebarBanners key="sidebar-banners-content" />

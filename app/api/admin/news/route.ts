@@ -8,6 +8,7 @@ import { scoreSeo } from "@/lib/seo/score"
 import { getPreviousTitles } from "@/lib/news-seo-cache"
 import { autoTranslateNewsMissing } from "@/lib/news-auto-translate"
 import { writeProductRevision } from "@/lib/product-revision"
+import { creditNewsRoyaltyOnPublish } from "@/lib/news-royalty"
 
 export const maxDuration = 300
 
@@ -557,6 +558,17 @@ export async function POST(req: Request) {
           : null,
       },
     })
+    // Cộng tiền nhuận bút cho tác giả khi bài được publish ngay lúc tạo.
+    // Idempotent — nếu bài này đã credit trước thì skip (PATCH route cũng
+    // gọi cùng helper khi bài chuyển từ draft → publish).
+    if (finalIsPublished) {
+      await creditNewsRoyaltyOnPublish(tx, {
+        newsId: created.id,
+        authorId: created.authorId,
+        title: created.title,
+        createdByAdminId: session.user!.id!,
+      })
+    }
     return { news: created, createdProductId }
   })
 

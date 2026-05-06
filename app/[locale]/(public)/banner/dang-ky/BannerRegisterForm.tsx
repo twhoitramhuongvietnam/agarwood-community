@@ -163,7 +163,8 @@ export function BannerRegisterForm() {
 
   return (
     <div className="bg-white rounded-2xl border border-brand-200 shadow-sm overflow-hidden">
-      {/* Quota chip */}
+      {/* Quota chip — informational. PoC mode (limit=-1) hiện count đã dùng
+          + ∞ thay vì chỉ "không giới hạn" để user biết hoạt động của mình. */}
       {quota && (
         <div className="border-b border-brand-100 px-6 py-3 bg-brand-50/50 flex items-center justify-between">
           <span className="text-xs text-brand-600">{t("quotaLabel")}</span>
@@ -177,7 +178,9 @@ export function BannerRegisterForm() {
                   : "bg-brand-50 text-brand-700 border border-brand-200",
             )}
           >
-            {quota.limit === -1 ? t("quotaUnlimited") : `Đã dùng ${quota.used}/${quota.limit} mẫu`}
+            {quota.limit === -1
+              ? `Đã đăng ${quota.used} · ∞`
+              : `Đã dùng ${quota.used}/${quota.limit} mẫu`}
           </span>
         </div>
       )}

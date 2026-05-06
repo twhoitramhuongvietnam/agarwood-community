@@ -52,6 +52,11 @@ const SETTINGS_GROUPS = [
       { key: "cert_fee", label: "Phí xét duyệt chứng nhận (VND)", type: "number" },
       { key: "max_vip_accounts", label: "Số slot VIP tối đa", type: "number" },
       { key: "post_cooldown_minutes", label: "Cooldown đăng bài (phút)", type: "number" },
+      {
+        key: "news_royalty_amount",
+        label: "Nhuận bút mỗi bài tin tức (VND, 0 = tắt)",
+        type: "number",
+      },
     ],
   },
   {

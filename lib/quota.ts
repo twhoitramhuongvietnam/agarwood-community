@@ -112,8 +112,13 @@ export async function getQuotaUsage(userId: string): Promise<QuotaUsage> {
     where: {
       authorId: userId,
       createdAt: { gte: monthStart },
-      // không tính bài đã DELETED — tránh gian lận xóa bài để tăng quota
-      status: { in: ["PUBLISHED", "LOCKED"] },
+      // Đếm mọi post user đã tạo trong tháng — gồm cả PENDING (chờ duyệt
+      // mặc định cho non-admin sau migration post_status_pending_default).
+      // Loại trừ DELETED để chống gian lận xóa-rồi-đăng-lại để reset quota.
+      // LOCKED (admin reject hoặc auto-lock từ report) vẫn count vì user đã
+      // "dùng" lượt đăng đó. PENDING count vì nếu không, user sẽ thấy quota
+      // không giảm sau khi vừa đăng → confusing UX.
+      status: { not: "DELETED" },
     },
   })
 
