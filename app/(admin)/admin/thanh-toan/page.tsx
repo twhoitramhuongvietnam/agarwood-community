@@ -229,8 +229,8 @@ export default async function AdminPaymentPage({
       {recentProcessed.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-brand-500 uppercase tracking-wide">Đã xử lý gần đây</h2>
-          <div className="bg-white border border-brand-200 rounded-2xl overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="bg-white border border-brand-200 rounded-2xl overflow-x-auto">
+            <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-brand-200 text-xs text-brand-500 font-medium">
                   <th className="text-left px-4 py-3">Người dùng</th>

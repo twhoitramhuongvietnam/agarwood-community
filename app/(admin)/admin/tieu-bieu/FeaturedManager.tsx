@@ -247,7 +247,7 @@ export function FeaturedManager({ initialProducts, initialCompanies }: Props) {
               {filteredProducts.length}/{products.length} SP
             </span>
           </div>
-        <div className="rounded-xl border border-brand-200 bg-white overflow-hidden">
+        <div className="rounded-xl border border-brand-200 bg-white overflow-x-auto">
           {filteredProducts.length === 0 ? (
             <p className="p-12 text-center text-brand-500 italic">
               {productQuery
@@ -255,7 +255,7 @@ export function FeaturedManager({ initialProducts, initialCompanies }: Props) {
                 : "Chưa có sản phẩm nào từ doanh nghiệp hội viên."}
             </p>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead className="bg-brand-50 text-xs uppercase text-brand-500">
                 <tr>
                   <th className="px-4 py-3 text-left w-12 whitespace-nowrap">Tiêu biểu</th>
@@ -349,7 +349,7 @@ export function FeaturedManager({ initialProducts, initialCompanies }: Props) {
               {filteredCompanies.length}/{companies.length} DN
             </span>
           </div>
-        <div className="rounded-xl border border-brand-200 bg-white overflow-hidden">
+        <div className="rounded-xl border border-brand-200 bg-white overflow-x-auto">
           {filteredCompanies.length === 0 ? (
             <p className="p-12 text-center text-brand-500 italic">
               {companyQuery
@@ -357,7 +357,7 @@ export function FeaturedManager({ initialProducts, initialCompanies }: Props) {
                 : "Chưa có doanh nghiệp hội viên nào."}
             </p>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead className="bg-brand-50 text-xs uppercase text-brand-500">
                 <tr>
                   <th className="px-4 py-3 text-left w-12 whitespace-nowrap">Tiêu biểu</th>
