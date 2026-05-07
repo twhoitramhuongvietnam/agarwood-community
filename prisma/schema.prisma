@@ -1694,3 +1694,42 @@ model StaticPageConfig {
   @@unique([pageKey, itemKey])
   @@map("static_page_configs")
 }
+
+// ============================================================
+// SERVICE QUOTA MONITORING — theo dõi free-tier usage
+// ============================================================
+
+/// Snapshot dùng dung lượng / requests / bandwidth của các service bên ngoài
+/// (Cloudinary, Google Drive, Supabase, Vercel). Cron daily ghi 1 row mỗi
+/// metric. Dashboard /admin/giam-sat đọc latest snapshot + trend 30 ngày.
+///
+/// Vercel free tier không có Usage API → admin nhập tay (source=MANUAL).
+/// Còn lại đọc tự động qua API (source=AUTO) — Cloudinary `/usage`,
+/// Drive `about.get`, Supabase `pg_database_size()`.
+model ServiceQuotaSnapshot {
+  id          String              @id @default(cuid())
+  service     ServiceQuotaService // CLOUDINARY | GDRIVE | SUPABASE | VERCEL
+  metric      String              // vd "storage_bytes", "monthly_bandwidth", "transformations", "db_size_bytes"
+  used        BigInt              // số lượng dùng (đơn vị tuỳ unit)
+  limit       BigInt              // ngưỡng free tier
+  unit        String              // "bytes", "count", "ms" — chỉ để render
+  source      ServiceQuotaSource  @default(AUTO)
+  note        String?             @db.Text // chi tiết thêm (lỗi fetch, manual entry note)
+  capturedAt  DateTime            @default(now())
+
+  @@index([service, metric, capturedAt])
+  @@index([capturedAt])
+  @@map("service_quota_snapshots")
+}
+
+enum ServiceQuotaService {
+  CLOUDINARY
+  GDRIVE
+  SUPABASE
+  VERCEL
+}
+
+enum ServiceQuotaSource {
+  AUTO   // fetch tự động qua API
+  MANUAL // admin nhập tay (cho service không có public API free-tier)
+}
