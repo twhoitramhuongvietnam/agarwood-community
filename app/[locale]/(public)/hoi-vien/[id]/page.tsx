@@ -128,8 +128,8 @@ export default async function MemberProfilePage({
   return (
     <div>
       {/* Header banner */}
-      <section className="bg-brand-800 py-12 px-4">
-        <div className="max-w-4xl mx-auto">
+      <section className="bg-brand-800 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
           <Link
             href="/hoi-vien"
             className="inline-block text-sm text-brand-300 hover:text-brand-100 mb-4"
@@ -149,10 +149,19 @@ export default async function MemberProfilePage({
             <div className="min-w-0 flex-1">
               <h1 className="text-2xl sm:text-3xl font-bold text-brand-100">{member.name}</h1>
               <p className="text-sm text-brand-300 mt-1">
-                {isBusiness ? tM("businessMember") : tM("individualMember")}
-                <span className="mx-2">·</span>
-                {tM("tier")} {categoryLabel}
-                {tierInfo.stars > 0 && <span className="ml-2 text-amber-300">{"★".repeat(tierInfo.stars)} {tierInfo.label}</span>}
+                {(isBusiness ? tM("businessMember") : tM("individualMember")).replace(/ /g, " ")}
+                {" "}
+                <span className="mx-1">·</span>
+                {" "}
+                {`${tM("tier")} ${categoryLabel}`.replace(/ /g, " ")}
+                {tierInfo.stars > 0 && (
+                  <>
+                    {" "}
+                    <span className="text-amber-300">
+                      {`${"★".repeat(tierInfo.stars)} ${tierInfo.label}`.replace(/ /g, " ")}
+                    </span>
+                  </>
+                )}
               </p>
               {isBusiness && member.company && (
                 <p className="text-sm text-brand-400 mt-0.5">
@@ -173,7 +182,7 @@ export default async function MemberProfilePage({
 
       {/* Main content */}
       <div className="bg-brand-50/60">
-      <div className="max-w-4xl mx-auto px-4 py-10 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 py-10 sm:px-6 lg:px-8 space-y-6">
         {/* Bio or Tabs */}
         {member.products.length > 0 ? (
           <div className="bg-white rounded-xl border border-brand-200 p-6">

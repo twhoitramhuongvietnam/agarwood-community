@@ -421,14 +421,15 @@ export function PostDetailClient({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-brand-900">{post.author.name}</span>
-              {post.author.company && (
+              {post.author.company ? (
                 <Link
                   href={`/doanh-nghiep/${post.author.company.slug}`}
-                  className="text-sm text-brand-500 hover:text-brand-700"
+                  className="font-semibold text-brand-900 hover:text-brand-700"
                 >
-                  · {post.author.company.name}
+                  {post.author.company.name}
                 </Link>
+              ) : (
+                <span className="font-semibold text-brand-900">{post.author.name}</span>
               )}
             </div>
             <span className="text-xs text-brand-400" suppressHydrationWarning>

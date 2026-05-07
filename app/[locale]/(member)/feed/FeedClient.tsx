@@ -653,23 +653,45 @@ function PostCard({
       )}
 
       {/* Author row */}
+      {(() => {
+        const authorHref = post.author.company
+          ? `/doanh-nghiep/${post.author.company.slug}`
+          : `/hoi-vien/${post.author.id}`
+        return (
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div className="relative w-10 h-10 rounded-full bg-brand-200 flex items-center justify-center shrink-0 overflow-hidden">
+          <Link
+            href={authorHref}
+            className="relative w-10 h-10 rounded-full bg-brand-200 flex items-center justify-center shrink-0 overflow-hidden"
+          >
             {post.author.avatarUrl ? (
               <Image src={post.author.avatarUrl} alt="" fill className="object-cover" sizes="40px" />
             ) : (
               <span className="text-sm font-bold text-brand-700">{getInitials(post.author.name)}</span>
             )}
-          </div>
+          </Link>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-brand-900 text-sm">{post.author.name}</span>
               {post.author.company ? (
-                <span className="text-sm text-brand-500">· {post.author.company.name}</span>
-              ) : post.author.accountType === "INDIVIDUAL" ? (
-                <span className="text-sm text-brand-500">· Chuyên gia</span>
-              ) : null}
+                <Link
+                  href={authorHref}
+                  className="font-semibold text-brand-900 text-sm hover:text-brand-700 hover:underline"
+                >
+                  {post.author.company.name}
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href={authorHref}
+                    className="font-semibold text-brand-900 text-sm hover:text-brand-700 hover:underline"
+                  >
+                    {post.author.name}
+                  </Link>
+                  {post.author.accountType === "INDIVIDUAL" && (
+                    <span className="text-sm text-brand-500">· Chuyên gia</span>
+                  )}
+                </>
+              )}
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               <span className={cn("text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none", tier.cls)}>
@@ -713,6 +735,8 @@ function PostCard({
           </div>
         )}
       </div>
+        )
+      })()}
 
       {/* Promoted badge — hiển thị cho tất cả viewer khi bài đang được đẩy. */}
       {post.isPromoted && (
@@ -1555,8 +1579,9 @@ export function FeedClient({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-brand-900 truncate">{c.name}</p>
-                      {c.company && <p className="text-xs text-brand-400 truncate">{c.company.name}</p>}
+                      <p className="text-sm font-medium text-brand-900 truncate">
+                        {c.company ? c.company.name : c.name}
+                      </p>
                     </div>
                     <span className={cn("text-[10px] font-bold rounded-full px-1.5 py-0.5", t.cls)}>{t.label}</span>
                   </li>
