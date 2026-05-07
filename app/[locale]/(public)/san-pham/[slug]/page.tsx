@@ -390,17 +390,19 @@ export default async function ProductDetailPage({ params }: Props) {
               </div>
 
               {/* Address (trái) + CTAs (phải) cùng 1 hàng — KH yêu cầu
-                  2026-04-29. Mobile xếp dọc tự nhiên qua flex-wrap. */}
-              <div className="flex flex-wrap items-start justify-between gap-3">
+                  2026-04-29. Mobile <sm: stack dọc, CTA full-width tránh
+                  tràn border khi phone dài (vd "1900 9279"). Desktop sm+:
+                  giữ layout 2 cột justify-between. */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
                 {product.company!.address && (
-                  <dl className="text-sm flex-1 min-w-0">
+                  <dl className="text-sm sm:flex-1 sm:min-w-0">
                     <dt className="text-[11px] uppercase tracking-wide text-brand-500">Địa chỉ</dt>
                     <dd className="text-sm text-brand-800 line-clamp-2" title={product.company!.address ?? ""}>
                       {product.company!.address}
                     </dd>
                   </dl>
                 )}
-                <div className="flex flex-wrap gap-2 shrink-0">
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto sm:shrink-0">
                   <Link
                     href={`/doanh-nghiep/${product.company!.slug}`}
                     className="rounded-lg border border-brand-700 text-brand-700 px-3 py-1.5 text-xs font-semibold hover:bg-brand-700 hover:text-white transition-colors"
@@ -410,7 +412,7 @@ export default async function ProductDetailPage({ params }: Props) {
                   {product.company!.phone && (
                     <a
                       href={`tel:${product.company!.phone}`}
-                      className="rounded-lg border border-brand-300 text-brand-700 px-3 py-1.5 text-xs font-semibold hover:bg-brand-50 transition-colors"
+                      className="rounded-lg border border-brand-300 text-brand-700 px-3 py-1.5 text-xs font-semibold hover:bg-brand-50 transition-colors whitespace-nowrap"
                     >
                       📞 {product.company!.phone}
                     </a>
@@ -420,7 +422,7 @@ export default async function ProductDetailPage({ params }: Props) {
                       href={product.company!.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-lg border border-brand-300 text-brand-700 px-3 py-1.5 text-xs font-semibold hover:bg-brand-50 transition-colors"
+                      className="rounded-lg border border-brand-300 text-brand-700 px-3 py-1.5 text-xs font-semibold hover:bg-brand-50 transition-colors whitespace-nowrap"
                     >
                       🌐 Website
                     </a>

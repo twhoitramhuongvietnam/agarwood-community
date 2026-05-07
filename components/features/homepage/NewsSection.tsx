@@ -182,7 +182,10 @@ function StackedItem({
           tone="light"
         />
       )}
-      <h4 className="mt-2 text-[14px] font-bold leading-snug text-brand-900 underline-offset-2 decoration-brand-700 group-hover:text-brand-700 group-hover:underline">
+      <h4
+        className="mt-2 text-[14px] font-bold leading-snug text-brand-900 underline-offset-2 decoration-brand-700 line-clamp-3 group-hover:text-brand-700 group-hover:underline"
+        title={title}
+      >
         {title}
       </h4>
     </Link>
