@@ -9,28 +9,6 @@ import {
 import { BRAND_BLUR_DATA_URL } from "@/lib/imageBlur"
 import { AgarwoodPlaceholder } from "@/components/ui/AgarwoodPlaceholder"
 import { getTranslations } from "next-intl/server"
-import { prisma } from "@/lib/prisma"
-
-const SOCIAL_KEYS = ["facebook_url", "zalo_url", "youtube_url", "tiktok_url"] as const
-
-async function getSocialChannels() {
-  const rows = await prisma.siteConfig.findMany({
-    where: { key: { in: [...SOCIAL_KEYS] } },
-  })
-  const cfg = Object.fromEntries(rows.map((r) => [r.key, r.value])) as Partial<
-    Record<(typeof SOCIAL_KEYS)[number], string>
-  >
-  // Thứ tự cố định để layout không nhảy theo thứ tự DB query trả về.
-  const channels: { key: string; label: string; href: string; icon: string }[] = []
-  if (cfg.facebook_url)
-    channels.push({ key: "facebook", label: "Facebook", href: cfg.facebook_url, icon: "f" })
-  if (cfg.zalo_url) channels.push({ key: "zalo", label: "Zalo", href: cfg.zalo_url, icon: "Z" })
-  if (cfg.youtube_url)
-    channels.push({ key: "youtube", label: "YouTube", href: cfg.youtube_url, icon: "▶" })
-  if (cfg.tiktok_url)
-    channels.push({ key: "tiktok", label: "TikTok", href: cfg.tiktok_url, icon: "♪" })
-  return channels
-}
 
 function getCover(post: HomepagePost): string | null {
   if (post.imageUrls && post.imageUrls.length > 0) return post.imageUrls[0]
@@ -48,20 +26,18 @@ function plainTitle(post: HomepagePost, n = 80): string {
 }
 
 export async function MemberRail() {
-  // Fetch top posts + pool + socials + translations song song.
-  const [top, pool, socials, t, tNav] = await Promise.all([
+  // Fetch top posts + pool + translations song song.
+  const [top, pool, t] = await Promise.all([
     getTopVipMemberPosts(),
     getMemberPostsPool(),
-    getSocialChannels(),
     getTranslations("homepage"),
-    getTranslations("navbar"),
   ])
   const rotating = pickRotatingMembers(
     pool,
     top.map((p) => p.id),
   )
 
-  if (top.length === 0 && rotating.length === 0 && socials.length === 0) {
+  if (top.length === 0 && rotating.length === 0) {
     return (
       <aside
         aria-label={t("memberNewsTitle")}
@@ -76,9 +52,6 @@ export async function MemberRail() {
 
   return (
     <aside aria-label={t("memberNewsTitle")}>
-      {socials.length > 0 && (
-        <SocialChannels channels={socials} label={tNav("followUs")} />
-      )}
       {top.length > 0 && (
         <ul className="divide-y divide-brand-200 border-t border-b border-brand-200">
           {top.map((post) => (
@@ -141,59 +114,6 @@ function TopItem({ post }: { post: HomepagePost }) {
       </div>
     </Link>
   )
-}
-
-function SocialChannels({
-  channels,
-  label,
-}: {
-  channels: { key: string; label: string; href: string; icon: string }[]
-  label: string
-}) {
-  return (
-    <div className="mb-4 border-t border-b border-brand-200 bg-brand-50/50 px-3 py-2.5">
-      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-brand-500">
-        {label}
-      </p>
-      <div className="flex flex-wrap gap-1.5">
-        {channels.map((c) => (
-          <Link
-            key={c.key}
-            href={c.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={c.label}
-            title={c.label}
-            className={cls(c.key)}
-          >
-            <span aria-hidden className="text-sm font-bold leading-none">
-              {c.icon}
-            </span>
-            <span className="text-[11px] font-semibold">{c.label}</span>
-          </Link>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// Brand-tinted button per channel — nền trắng + border thương hiệu, hover
-// đậm hơn. Giữ contrast cao với background brand-50/50 của container.
-function cls(key: string): string {
-  const base =
-    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition-colors"
-  switch (key) {
-    case "facebook":
-      return `${base} border-blue-300 bg-white text-blue-700 hover:bg-blue-50`
-    case "zalo":
-      return `${base} border-sky-300 bg-white text-sky-700 hover:bg-sky-50`
-    case "youtube":
-      return `${base} border-red-300 bg-white text-red-700 hover:bg-red-50`
-    case "tiktok":
-      return `${base} border-neutral-400 bg-white text-neutral-900 hover:bg-neutral-100`
-    default:
-      return `${base} border-brand-300 bg-white text-brand-700 hover:bg-brand-50`
-  }
 }
 
 function CompactItem({ post }: { post: HomepagePost }) {
