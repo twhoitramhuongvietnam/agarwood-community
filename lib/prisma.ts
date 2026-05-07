@@ -8,9 +8,11 @@ function createPrismaClient() {
   const isProduction = process.env.NODE_ENV === "production"
   const isLocal = connectionString.includes("localhost") || connectionString.includes("127.0.0.1")
   
-  const pool = new Pool({ 
+  const pool = new Pool({
     connectionString,
-    max: 20,
+    max: isLocal ? 20 : 1,
+    idleTimeoutMillis: 5000,
+    connectionTimeoutMillis: 10000,
     // Chỉ dùng SSL nếu là production VÀ không phải database local
     ssl: (isProduction && !isLocal) ? { rejectUnauthorized: false } : undefined
   })
