@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { auth } from "@/lib/auth"
 import { getUserPermissions, hasPermission } from "@/lib/permissions"
 import { prisma } from "@/lib/prisma"
@@ -31,5 +32,7 @@ export async function POST(
     },
   })
 
+  // Lock/unlock đổi visibility → invalidate feed cache.
+  revalidateTag("feed", "max")
   return NextResponse.json({ status: newStatus })
 }

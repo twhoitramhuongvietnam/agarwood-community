@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { auth } from "@/lib/auth"
 import { isAdmin } from "@/lib/roles"
 import { prisma } from "@/lib/prisma"
@@ -103,6 +104,7 @@ export async function PATCH(
     })
   })
 
+  revalidateTag("feed", "max")
   return NextResponse.json({ success: true })
 }
 
@@ -131,5 +133,6 @@ export async function DELETE(
     data: { status: "DELETED" },
   })
 
+  revalidateTag("feed", "max")
   return NextResponse.json({ success: true })
 }

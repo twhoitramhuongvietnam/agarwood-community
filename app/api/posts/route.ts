@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server"
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getMonthlyQuota, startOfMonth, startOfNextMonth } from "@/lib/quota"
 import { getMonthlyProductQuota } from "@/lib/product-quota"
 import { writeProductRevision } from "@/lib/product-revision"
 import { getSortedFeedPostIds } from "@/lib/feed-sort"
+import {
+  getCachedFeedFirstPage,
+  getViewerReactions,
+  mergeReactions,
+} from "@/lib/feed-cache"
 import {
   PRODUCT_DEFAULT_SHIPPING,
   PRODUCT_DEFAULT_RETURN,
@@ -122,29 +127,50 @@ export async function GET(request: Request) {
   // Moderation visibility — match logic in feed/page.tsx:
   //  PUBLISHED → all; LOCKED no-note → all (auto-lock); LOCKED with note or
   //  PENDING → owner only.
-  let posts: Awaited<ReturnType<typeof prisma.post.findMany<{ select: typeof POST_SELECT }>>>
+  type DirectPostRow = Awaited<
+    ReturnType<typeof prisma.post.findMany<{ select: typeof POST_SELECT }>>
+  >[number]
+  // Union type — cached path có dates dạng string (đã serialize), direct
+  // query có Date instance. Consumer dùng toIso() normalize cuối cùng.
+  type PostRow =
+    | DirectPostRow
+    | (Omit<DirectPostRow, "createdAt" | "updatedAt" | "lockedAt"> & {
+        createdAt: string
+        updatedAt: string
+        lockedAt: string | null
+      })
+  let posts: PostRow[]
   if (useFeedSort) {
-    // 2-step: get sorted IDs from helper, hydrate via findMany, reorder.
-    // certifiedOnly chỉ apply cho PRODUCT — guard ở helper.
+    // First page (cursor=null) cho NEWS/PRODUCT đi qua unstable_cache (60s)
+    // — share giữa anon + logged-in. Reactions của viewer fetch riêng + merge.
+    // Pagination (cursor != null) bypass cache vì biến thể nhiều.
     const helperCategory: PostCategory =
       certifiedOnly || category === "PRODUCT" ? "PRODUCT" : "NEWS"
-    const ids = await getSortedFeedPostIds({
-      category: helperCategory,
-      userId: userId ?? null,
-      certifiedOnly,
-      cursor,
-      take: 10,
-    })
-    if (ids.length === 0) {
-      posts = []
+    if (!cursor) {
+      const cachedPosts = await getCachedFeedFirstPage(helperCategory, certifiedOnly)
+      const reactionsMap = userId
+        ? await getViewerReactions(userId, cachedPosts.map((p) => p.id))
+        : new Map<string, string[]>()
+      posts = mergeReactions(cachedPosts, reactionsMap) as PostRow[]
     } else {
-      const rows = await prisma.post.findMany({
-        where: { id: { in: ids } },
-        select: POST_SELECT,
+      const ids = await getSortedFeedPostIds({
+        category: helperCategory,
+        userId: userId ?? null,
+        certifiedOnly,
+        cursor,
+        take: 10,
       })
-      const idxMap = new Map(ids.map((id, i) => [id, i]))
-      rows.sort((a, b) => (idxMap.get(a.id) ?? 0) - (idxMap.get(b.id) ?? 0))
-      posts = rows
+      if (ids.length === 0) {
+        posts = []
+      } else {
+        const rows = await prisma.post.findMany({
+          where: { id: { in: ids } },
+          select: POST_SELECT,
+        })
+        const idxMap = new Map(ids.map((id, i) => [id, i]))
+        rows.sort((a, b) => (idxMap.get(a.id) ?? 0) - (idxMap.get(b.id) ?? 0))
+        posts = rows
+      }
     }
   } else {
     posts = await prisma.post.findMany({
@@ -185,14 +211,21 @@ export async function GET(request: Request) {
     })
   }
 
+  // Date normalizer — cached path (lib/feed-cache) trả ISO string, direct
+  // query trả Date instance. Wrap để cả 2 đều xử lý được.
+  const toIso = (d: Date | string | null | undefined): string | null => {
+    if (d == null) return null
+    return typeof d === "string" ? d : d.toISOString()
+  }
+
   const response = NextResponse.json({
     posts: posts.map((p) => {
       const { promotionRequests, ...rest } = p
       return {
         ...rest,
-        createdAt: p.createdAt.toISOString(),
-        updatedAt: p.updatedAt.toISOString(),
-        lockedAt: p.lockedAt?.toISOString() ?? null,
+        createdAt: toIso(p.createdAt) as string,
+        updatedAt: toIso(p.updatedAt) as string,
+        lockedAt: toIso(p.lockedAt),
         // Only expose promotion state to the author of the post.
         latestPromotionRequest:
           userId && p.authorId === userId
@@ -201,7 +234,12 @@ export async function GET(request: Request) {
       }
     }),
   })
-  response.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300")
+  // Cache-Control: KHÔNG dùng `public, s-maxage` vì response chứa reactions
+  // của viewer + post status PENDING/LOCKED của chính user → CDN cache lẫn
+  // giữa users sẽ leak personalized data. unstable_cache ở `getCachedFeed-
+  // FirstPage` đã handle shared-data caching ở app layer (an toàn — chỉ
+  // base post+author+product, reactions per-user merge runtime).
+  response.headers.set("Cache-Control", "private, max-age=0, must-revalidate")
   return response
 }
 
@@ -381,6 +419,7 @@ export async function POST(request: Request) {
     // Invalidate the /feed ISR cache so the new post shows up on the
     // next visit instead of waiting up to 60s for the revalidate tick.
     revalidatePath("/[locale]/feed", "page")
+    revalidateTag("feed", "max")
     return NextResponse.json({ post }, { status: 201 })
   }
 
@@ -483,6 +522,7 @@ export async function POST(request: Request) {
   })
 
   revalidatePath("/[locale]/feed", "page")
+  revalidateTag("feed", "max")
   return NextResponse.json(
     { post: { ...created.post, product: created.product } },
     { status: 201 },

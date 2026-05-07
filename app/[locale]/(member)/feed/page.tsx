@@ -7,6 +7,7 @@ import { getSortedFeedPostIds } from "@/lib/feed-sort"
 import { getQuotaUsage } from "@/lib/quota"
 import { getProductQuotaUsage } from "@/lib/product-quota"
 import { getBannerQuotaUsage } from "@/lib/bannerQuota"
+import { getCachedFeedFirstPage, getViewerReactions, mergeReactions } from "@/lib/feed-cache"
 import { FeedClient } from "./FeedClient"
 import { SidebarBanners, SidebarBannersSkeleton } from "./SidebarBanners"
 
@@ -67,17 +68,12 @@ export default async function FeedPage({
   //  - PENDING → CHI owner thay (banner vang "Cho duyet")
   // Initial render khớp với filter = initialFilter (default NEWS, hoặc
   // PRODUCT nếu vào từ section "Sản phẩm hội viên" trên trang chủ).
-  // Phase 3.7 round 4 (2026-04): PRODUCT + NEWS dùng thuật toán sort đặc
-  // biệt (by-day VN → [cert PRODUCT only] → priority → createdAt). Helper
-  // getSortedFeedPostIds trả ID list, sau đó hydrate qua findMany + reorder.
-  const feedSortedIds =
-    initialFilter === "PRODUCT" || initialFilter === "NEWS"
-      ? await getSortedFeedPostIds({
-          category: initialFilter,
-          userId: userId ?? null,
-          take: 10,
-        })
-      : null
+  //
+  // Performance (2026-05): NEWS/PRODUCT first page đi qua `unstable_cache`
+  // (60s TTL, tag "feed") — share giữa anon + logged-in để tận dụng cache
+  // hit. Reactions của viewer fetch riêng (per-user, không cache) rồi merge.
+  // PINNED/MINE giữ direct query (mỗi cái 1 user perspective, low traffic).
+  const useCachedFeed = initialFilter === "NEWS" || initialFilter === "PRODUCT"
 
   const POST_INITIAL_SELECT = {
     id: true,
@@ -134,19 +130,29 @@ export default async function FeedPage({
     _count: { select: { reactions: true, comments: { where: { deletedAt: null } } } },
   } as const
 
-  let initialPosts: Awaited<ReturnType<typeof prisma.post.findMany<{ select: typeof POST_INITIAL_SELECT }>>>
-  if (feedSortedIds) {
-    if (feedSortedIds.length === 0) {
-      initialPosts = []
-    } else {
-      const rows = await prisma.post.findMany({
-        where: { id: { in: feedSortedIds } },
-        select: POST_INITIAL_SELECT,
+  type DirectPostShape = Awaited<
+    ReturnType<typeof prisma.post.findMany<{ select: typeof POST_INITIAL_SELECT }>>
+  >[number]
+  // Union type — cached path có dates dạng string (đã serialize), direct
+  // query có Date instance. Consumer dùng toIso() normalize cuối cùng.
+  type InitialPostShape =
+    | DirectPostShape
+    | (Omit<DirectPostShape, "createdAt" | "updatedAt" | "lockedAt"> & {
+        createdAt: string
+        updatedAt: string
+        lockedAt: string | null
       })
-      const idxMap = new Map(feedSortedIds.map((id, i) => [id, i]))
-      rows.sort((a, b) => (idxMap.get(a.id) ?? 0) - (idxMap.get(b.id) ?? 0))
-      initialPosts = rows
-    }
+  let initialPosts: InitialPostShape[]
+  if (useCachedFeed) {
+    // Cached query (no reactions field) → merge reactions per-viewer.
+    const cachedPosts = await getCachedFeedFirstPage(
+      initialFilter as "NEWS" | "PRODUCT",
+      false,
+    )
+    const reactionsMap = userId
+      ? await getViewerReactions(userId, cachedPosts.map((p) => p.id))
+      : new Map<string, string[]>()
+    initialPosts = mergeReactions(cachedPosts, reactionsMap) as InitialPostShape[]
   } else {
     initialPosts = await prisma.post.findMany({
       where:
@@ -184,13 +190,22 @@ export default async function FeedPage({
     })
   }
 
+  // Date normalizer — cached path trả ISO string, direct query trả Date.
+  // unstable_cache deserialize JSON → Date instance bị mất → consumer
+  // call .toISOString() trên string sẽ throw. Fallback wrapping để cả 2
+  // đều ra string.
+  const toIso = (d: Date | string | null | undefined): string | null => {
+    if (d == null) return null
+    return typeof d === "string" ? d : d.toISOString()
+  }
+
   const posts = initialPosts.map((p) => {
     const { promotionRequests, ...rest } = p
     return {
       ...rest,
-      createdAt: p.createdAt.toISOString(),
-      updatedAt: p.updatedAt.toISOString(),
-      lockedAt: p.lockedAt?.toISOString() ?? null,
+      createdAt: toIso(p.createdAt) as string,
+      updatedAt: toIso(p.updatedAt) as string,
+      lockedAt: toIso(p.lockedAt),
       latestPromotionRequest:
         userId && p.authorId === userId
           ? (promotionRequests[0] ?? null)
