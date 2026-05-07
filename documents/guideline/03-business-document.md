@@ -3,7 +3,7 @@
 
 > Tai lieu nay quy dinh cac quy trinh nghiep vu chinh thuc cua he thong.
 > Ap dung cho Ban quan tri va toan the hoi vien.
-> Phien ban: 3.2 | Cap nhat: 04/2026 — Phase 1-6 + Điều lệ integration + Văn bản pháp quy + Member application workflow
+> Phien ban: 3.4 | Cap nhat: 05/2026 — Phase 1-6 + Điều lệ + VBPQ + Member application + News royalty + PoC quota
 
 ---
 
@@ -290,6 +290,17 @@ dinh trong vong **30 ngay** ke tu ngay nop don day du. Cac trang thai:
 - Bai dang voi `category: NEWS` hoac `PRODUCT` cua Hoi vien co the len trang chu (section 5/6)
 - Bai cua Tai khoan co ban khong len trang chu, chi hien o /feed
 
+> **PoC mode (3.4 — 05/2026, default ON)**: Trong giai doan demo, env
+> `POC_UNLIMITED_POSTS=1` (mac dinh) lam moi quota tra `-1` (unlimited). UI sidebar
+> `/feed` (QuotaCard) van hien `Đã đăng X · ∞` cho thay so bai dang nhung khong
+> chan. Tat khi het PoC: set env thanh `0`/`false` va restart, hoac revert
+> `lib/poc-mode.ts`. Server enforce qua `lib/quota.ts`, `lib/product-quota.ts`,
+> `lib/bannerQuota.ts` — tat ca cung honor PoC flag.
+
+> **Quota count fix (3.4)**: `lib/quota.ts` truoc dem chi `PUBLISHED` posts → user
+> vua post 1 bai (status PENDING default cho non-admin) thay quota=0/15. Da fix:
+> dem moi status tru DELETED (PENDING van count vi user da "dung" luot dang).
+
 ### 6.3 Xu ly vi pham
 | Muc do | Hanh dong | Ai xu ly |
 |--------|----------|---------|
@@ -328,6 +339,34 @@ dinh trong vong **30 ngay** ke tu ngay nop don day du. Cac trang thai:
 ### 7.4 Thay doi hang
 - Tu dong thang hang khi dong gop dat nguong
 - KHONG tu dong tut hang (dong gop tich luy khong giam)
+
+### 7.5 Nhuan but tin tuc auto-credit (3.4 — 05/2026)
+
+Khi 1 bai tin tuc duoc xuat ban, he thong tu dong cong nhuan but cho tac gia
+nhu mot khoan dong gop danh du (`HonoraryContribution.category=OTHER`).
+
+**Quy tac**:
+- Amount = SiteConfig key `news_royalty_amount` (default 1.000.000 VND/bai)
+- Set `news_royalty_amount=0` (`/admin/cai-dat`) → tat tinh nang
+- ADMIN tac gia van nhan (khong skip)
+- KHONG gia han `membershipExpires` (extendMonths=0) — chi tinh vao
+  `contributionTotal` cho ranking + tier
+- **Idempotent**: marker `[news:{id}]` trong `reason` field → re-publish/edit
+  bai da publish khong double-credit
+
+**Tac dong**:
+- `User.contributionTotal += amount`
+- `User.displayPriority = floor(newTotal / 1.000.000)`
+- `Post.authorPriority` cua moi bai feed cua user duoc cap nhat → uu tien
+  hien thi tang theo
+
+**Trigger**:
+- POST `/api/admin/news` voi `isPublished=true`
+- PATCH `/api/admin/news/[id]` chuyen `isPublished` tu `false → true`
+
+**Xem**:
+- Lich su tai `/admin/hoi-vien/[id]` tab Membership → "Lich su dong gop"
+- Reason format: `Nhuan but bai tin tuc "{title}" [news:{id}]`
 
 ---
 
@@ -437,6 +476,8 @@ dinh trong vong **30 ngay** ke tu ngay nop don day du. Cac trang thai:
 | 3.0 | 04/2026 | Phase 1-5: Open posting (bo cho duyet), quota thang, top 10 DN + top 20 SP tieu bieu, landing page Quyen loi hoi vien, trang chu newspaper layout |
 | 3.1 | 04/2026 | Phase 6 (SPEC): chot business rules cho banner quang cao — 1tr/mau/thang, quota 1/5/10/20 theo tier, gia han duoc, hien thi rotate 5s top 20 slot |
 | **3.2** | **04/2026** | **Dieu le Hoi integration**: 3 hang hoi vien (Chinh thuc / Lien ket / Danh du), phi dung Dieu le (gia nhap + nien lien), Don ket nap (/ket-nap + admin review), Van ban phap quy (/phap-ly voi 3 tabs), Nguoi dai dien to chuc, Hoi vien doi tac thuc te (9 DN Hoi vien Bac), menu restructure (Trang chu / Tin tuc / Nghien cuu / Doanh nghiep / San pham / Quyen loi) |
+| 3.3 | 04/2026 | Journalistic redesign V2 (chrome SiteHeader/CategoryBar/SiteFooter, article+list templates, lazy-load list, unstable_cache Date pattern) |
+| **3.4** | **05/2026** | **Static-page CMS expanded**: 5 mockup tabs moi (`companies` / `certProducts` / `contact` / `home` (footer text) / `dieuLe`); **i18n per-locale lookup** (lib/static-texts.ts) thay cross-language fallback; **News royalty auto-credit** (1tr VND/bai default, configurable, idempotent); **Quota sidebar** o /feed (PoC mode hien `∞`); legacy `/gioi-thieu` v1 da xoa → redirect /gioi-thieu-v2; them TikTok pill (`tiktok_url`) |
 
 ---
 

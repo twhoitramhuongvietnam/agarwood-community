@@ -1,8 +1,8 @@
 # Huong dan van hanh danh cho Admin
-## Hoi Tram Huong Viet Nam — Phien ban 3.2
+## Hoi Tram Huong Viet Nam — Phien ban 3.4
 
 > Tai lieu nay danh cho Ban Quan tri su dung he thong hang ngay.
-> Cap nhat lan cuoi: 04/2026 (Phase 1-6 + Dieu le integration)
+> Cap nhat lan cuoi: 05/2026 (Phase 1-6 + Dieu le + Static-page CMS + News royalty + i18n per-locale)
 
 ---
 
@@ -29,6 +29,8 @@
 19. [Gallery anh nen trang chu (`/admin/gallery`)](#19-gallery-anh-nen-trang-chu)
 20. [Tin nhan lien he tu website (`/admin/lien-he`)](#20-tin-nhan-lien-he-tu-website)
 21. [Duyet bai viet cua hoi vien (`/admin/bai-viet/cho-duyet`)](#21-duyet-bai-viet-cua-hoi-vien)
+22. [CMS trang tinh (`/admin/trang-tinh`)](#22-cms-trang-tinh)
+23. [Nhuan but tin tuc tu dong (3.4)](#23-nhuan-but-tin-tuc-tu-dong)
 
 ---
 
@@ -536,42 +538,46 @@ Script crawl tu dong download images + upload Cloudinary + sanitize HTML.
 
 ### Truy cap: `/admin/cai-dat`
 
-### 5 nhom cai dat:
+### Cac nhom cai dat (3.4 reorder + bo Footer group):
 
 **Thong tin Hoi:**
-- Ten hoi, email, SDT (`association_phone`), SDT 2 (`association_phone_2`), dia chi
+- Ten hoi, email, SDT (`association_phone`), SDT 2 (`association_phone_2`), dia chi (4 ngon ngu)
 - **Website chinh thuc** (`association_website`) — hien o footer + block "Kenh truyen thong chinh thuc"
 - **Link Facebook / Zalo OA (`zalo_url`)** (Phase 1: hien icon FB tren navbar + footer)
 - **Link kenh YouTube** (Phase 1: hien icon YT tren navbar)
+- **Link TikTok** (`tiktok_url`, them 3.4) — hien icon TikTok trong `OfficialChannelsBlock`
+  (privacy/terms/contact) + top `MemberRail` trang chu canh Facebook/Zalo/YouTube. De
+  trong de an pill.
 - Hien thi tren toan bo website, footer, email
 
-**Footer website** (moi — noi dung hien o footer cong khai):
-- `footer_brand_desc` (textarea) — doan gioi thieu ngan duoi logo
-- `footer_working_hours` (textarea) — gio lam viec, moi dong 1 y
-- `footer_legal_basis` (textarea) — co so phap ly / QD thanh lap
-- `footer_copyright_notice` (textarea) — dong ban quyen duoi cung
-- `footer_quick_links` (textarea) — moi dong 1 link theo format `Nhan|duong-dan`, vi du:
-  ```
-  Gioi thieu|/gioi-thieu
-  Lien he|/lien-he
-  Dieu khoan|/terms
-  ```
-- Thay doi -> luu -> footer cap nhat ngay (cache `footer` + `site-config` auto revalidate)
-- Neu key trong, Footer fallback ve gia tri mac dinh trong code
-
-**Phi & Gioi han:**
-- Phi membership toi thieu / toi da (VND)
-- Phi chung nhan san pham (VND)
-- So slot VIP toi da
-- Thay doi o day -> cap nhat ngay tren trang /gia-han
-
-**Thong tin Chuyen khoan:**
-- Ngan hang nhan, so TK, chu TK
+**Thong tin Chuyen khoan** (3.4 — dat truoc "Phi & Gioi han"):
+- Ngan hang nhan, so TK, chu TK, chi nhanh
 - Thay doi o day -> cap nhat ngay tren huong dan CK cho VIP
 
-**Hang hoi vien:**
+**Phi & Gioi han:**
+- Nien lien To chuc / Ca nhan toi thieu / toi da (VND)
+- Phi gia nhap (1 lan)
+- Phi xet duyet chung nhan (`cert_fee`)
+- So slot VIP toi da
+- Cooldown dang bai (phut)
+- **Nhuan but moi bai tin tuc** (`news_royalty_amount`, them 3.4) — VND, set 0 de tat.
+  Default 1tr. Xem section 23 ben duoi.
+- Thay doi o day -> cap nhat ngay tren cac trang lien quan
+
+**Hang hoi vien — Doanh nghiep / Ca nhan:**
 - Nguong dong gop de thang hang Bac / Vang
 - Ten hien thi tung hang
+
+> **3.4 — Bo nhom "Footer website"**: tat ca text footer truoc day o `/admin/cai-dat`
+> (`footer_brand_desc`, `footer_working_hours`, `footer_legal_basis`, ...) **da chuyen
+> sang CMS trang tinh** tai `/admin/trang-tinh?page=home`. SiteConfig keys cu
+> (`footer_*`) khong con duoc consume — Footer doc qua `getStaticTexts("home", locale,
+> "footer")` (lib/static-texts.ts). Neu can sua text footer, vao `/admin/trang-tinh`
+> → tab "Trang chu". Xem section 22.
+
+> **3.4 — Bo "Dieu le PDF uploader" o `/admin/cai-dat`**: cong cu upload Dieu le
+> PDF da chuyen sang `/admin/trang-tinh?page=dieuLe` (4 locale vi/en/zh/ar). Xem
+> section 22.
 
 > **Quan trong**: Sau khi luu, he thong tu dong cap nhat cac trang lien quan. Khong can deploy lai.
 
@@ -1025,6 +1031,108 @@ INFINITE, VIP, va user binh thuong KHONG bypass — moi tier phai qua kiem duyet
 
 Ca 2 khi LOCKED: moderation reject dung `moderationNote`, auto-lock tu report
 dung `lockReason`. Tac gia thay banner khac nhau (do/vang) de phan biet nguon goc.
+
+---
+
+## 22. CMS trang tinh
+
+### Tong quan
+Trang `/admin/trang-tinh` cho phep admin sua text hien thi cong khai cua cac
+trang tinh (Gioi thieu, Doanh nghiep, San pham chung nhan, Lien he, Trang chu,
+Dieu le) ma khong can deploy lai. Du lieu luu o bang `StaticPageConfig` voi
+4 cot per item (`value` = vi, `value_en`, `value_zh`, `value_ar`); neu cot trong
+he thong fallback ve `messages/{locale}.json` (next-intl).
+
+### 6 tab page
+
+| Tab (URL) | Page key | Kind | So key | Pham vi |
+|-----------|---------|------|-------|---------|
+| Gioi thieu | `?page=about` | text-cms | 21 | Hero, Intro, Lanh dao, So do, Hoi vien, CTA — render o `/gioi-thieu-v2` |
+| Doanh nghiep | `?page=companies` | text-cms | 22 | Hero (full edit), section headers (Tieu bieu / Danh ba), CTA gia nhap (full edit) — `/doanh-nghiep` |
+| San pham chung nhan | `?page=certProducts` | text-cms | 26 | Hero (full edit + stats), section headers (Quy trinh / Tieu bieu / Danh sach), CTA Aspiration (full edit) — `/san-pham-chung-nhan` |
+| Lien he | `?page=contact` | text-cms | 9 | Nhan label trai (DT/Email/Dia chi/Website/Gio lam/MXH) + tieu de cot phai — `/lien-he` |
+| Trang chu | `?page=home` | text-cms | 16 | **Footer text** (brand desc, copyright, leadership labels, working hours, bottom bar) — Footer xuat hien o moi trang. Page key dung "home" cho URL re hieu, fallbackNamespace="footer" cho messages |
+| Dieu le | `?page=dieuLe` | dieu-le | 0 (uploader) | Upload PDF Dieu le 4 locale (vi/en/zh/ar) — luu vao SiteConfig key `dieu_le_drive_file_id{_locale}` |
+
+### Cach su dung tab text-cms
+1. Chon tab → workbench 2 cot:
+   - **Cot trai (mockup)**: preview giong public page, click ben canh field → highlight target
+   - **Cot phai (TextConfigEditor)**: 4 sub-tabs locale (vi/en/zh/ar), inputs/textareas theo schema
+2. Sua text trong locale mong muon → Luu (auto-save per item, 500ms debounce)
+3. Trong trong = fallback ve messages JSON (mac dinh)
+4. Cap nhat hien ngay sau revalidate cache `static-page-config` + path tuong ung
+
+### Cach su dung tab dieu-le
+1. Chon tab Dieu le → 4 panel uploader 4 locale
+2. Drag/drop PDF (max 20MB) → upload Google Drive (folder Dieu le) → luu file ID vao SiteConfig
+3. User cong khai vao `/dieu-le` → xem PDF embed theo locale (vi/en/zh/ar)
+4. Dat trong de an PDF locale do (page hien fallback hoac empty)
+
+### Field type
+- `text`: input 1 dong
+- `textarea`: textarea nhieu dong (vd mo ta dai, list cach dong)
+- `richtext`: WYSIWYG (it dung — chu yeu plain text)
+- `image`: upload image qua /api/upload, luu URL
+
+### Markup HTML trong message
+Mot so message co `<em>`/`<strong>`/`{count}` (vd `Tieu de <em>dan dat</em> ({count} hoi vien)`)
+— next-intl ICU mac dinh throw FORMATTING_ERROR khi gap. `getStaticTexts()` dung
+`t.raw()` de bypass va tu interpolate `{placeholder}` thu cong → safe de viet HTML.
+
+### Permission
+- Read: `isAdmin()` (ADMIN + INFINITE)
+- Write: `canAdminWrite()` (chi ADMIN). INFINITE thay readonly + tooltip.
+
+---
+
+## 23. Nhuan but tin tuc tu dong
+
+### Tong quan
+Tu phien ban 3.4 (05/2026), khi 1 bai tin tuc duoc xuat ban (publish lan dau),
+he thong tu dong cong nhuan but cho tac gia bang cach tao
+`HonoraryContribution` record voi `category=OTHER` va `extendMonths=0`.
+
+### Cau hinh
+- Vao `/admin/cai-dat` → nhom "Phi & Gioi han" → key `news_royalty_amount`
+- **Default**: 1.000.000 VND/bai
+- **Set 0** (hoac de trong) → tat tinh nang
+- **Set so > 0** → ap dung ngay cho cac bai duoc publish sau do
+
+### Trigger
+Royalty duoc tinh khi:
+1. **POST** `/api/admin/news` voi `isPublished=true` (admin tao bai va publish ngay)
+2. **PATCH** `/api/admin/news/[id]` chuyen `isPublished` tu `false → true`
+   (admin "Xuat ban" mot bai cu o draft)
+
+### Idempotency
+- Marker `[news:{id}]` chen vao `reason` field cua HonoraryContribution
+- Truoc khi tao record moi, query `where: { reason: { contains: "[news:{id}]" } }`
+- Co record cu → skip (re-publish, edit bai da publish, hoac toggle qua lai khong double-credit)
+
+### Tac dong len User va Post
+Sau khi tao record, transaction tu update:
+- `User.contributionTotal += amount`
+- `User.displayPriority = floor(newTotal / 1_000_000)`
+- `Post.authorPriority = displayPriority` cho moi bai cua user (ranking feed)
+
+### Khac biet voi HonoraryContribution thong thuong
+- KHONG gia han `membershipExpires` (extendMonths=0) — chi tinh vao tier ranking
+- ADMIN tac gia van nhan (khong skip nhu endpoint manual)
+- Reason format: `Nhuan but bai tin tuc "{title}" [news:{id}]`
+
+### Helper code
+- File: `lib/news-royalty.ts`
+- Export: `creditNewsRoyaltyOnPublish(tx, args)` — call inside Prisma transaction
+- Args: `{ newsId, authorId, title, createdByAdminId }`
+- Tra ve: record vua tao, hoac `null` neu skip (idempotent / amount=0 / author missing)
+
+### Theo doi
+Vao `/admin/hoi-vien/[id]` → tab Membership → Lich su dong gop → record co reason
+"Nhuan but bai tin tuc..." la cac dong nay. Co the dem so bai bang `LIKE '[news:%]'`
+de bao cao thong ke neu can.
+
+> **Tat ngay**: set `news_royalty_amount=0` o `/admin/cai-dat`. Cac bai cu da
+> co record nhuan but giu nguyen — tinh nang chi ngung tu thoi diem do tro di.
 
 ---
 

@@ -1,7 +1,7 @@
 # Tai lieu Ky thuat — Hoi Tram Huong Viet Nam
 
 > Danh cho developer moi join hoac doi maintain he thong.
-> Cap nhat: 04/2026 — Phase 1-6 + Dieu le + Van ban phap quy + TipTap v3 + i18n 4 locale (VI/EN/ZH/AR) + Admin notification system + Contact messages + Feed sidebar banner + Refined typography
+> Cap nhat: 05/2026 — Phase 1-6 + Dieu le + VBPQ + TipTap v3 + i18n 4 locale + Admin notification + Contact messages + Feed sidebar banner + Refined typography + **Static-page CMS + i18n per-locale lookup + News royalty auto-credit + PoC quota mode**
 
 ---
 
@@ -99,11 +99,15 @@ agarwood-community/
 │   ├── auth.config.ts          # Edge-safe config (cho proxy/middleware)
 │   ├── prisma.ts               # Prisma singleton + connection pool
 │   ├── tier.ts                 # Tier helpers (Bac/Vang thresholds)
-│   ├── quota.ts                # [Phase 2] Monthly post quota helper (5/15/30/-1)
+│   ├── quota.ts                # [Phase 2] Monthly post quota helper (5/15/30/-1) — count moi status tru DELETED
 │   ├── homepage.ts             # [Phase 3] Cached data fetchers + rotation logic
 │   ├── legal-pages.ts          # Helper fetch News(LEGAL) cho /privacy, /terms
 │   ├── product-quota.ts        # Monthly product quota helper
 │   ├── bannerQuota.ts          # Monthly banner quota helper
+│   ├── poc-mode.ts             # [3.4] PoC unlimited toggle — env POC_UNLIMITED_POSTS, default ON
+│   ├── news-royalty.ts         # [3.4] creditNewsRoyaltyOnPublish — auto-credit nhuan but tac gia
+│   ├── static-texts.ts         # [3.4] Per-locale column lookup cho StaticPageConfig + messages fallback
+│   ├── static-page-meta.ts     # [3.4] STATIC_PAGES schema (about/companies/certProducts/contact/home/dieuLe)
 │   ├── utils.ts                # cn() utility
 │   └── constants/
 │       ├── banks.ts            # 21 ngan hang VN

@@ -1,9 +1,9 @@
 # Huong dan su dung danh cho Hoi vien
-## Hoi Tram Huong Viet Nam — Phien ban 3.2
+## Hoi Tram Huong Viet Nam — Phien ban 3.4
 
 > Chao mung ban gia nhap cong dong Hoi Tram Huong Viet Nam!
 > Tai lieu nay huong dan ban su dung day du cac tinh nang cua he thong.
-> Cap nhat lan cuoi: 04/2026 (Phase 1-6 + Dieu le Hoi)
+> Cap nhat lan cuoi: 05/2026 (Phase 1-6 + Dieu le Hoi + QuotaCard sidebar + PoC mode)
 >
 > **Phase 2**: Tu phien ban moi, **bat ky ai** dang ky tai khoan cung su dung duoc ngay
 > (Tai khoan co ban — 5 bai/thang). Nang cap len **Hoi vien** de tang quota va xuat hien tren trang chu.
@@ -220,6 +220,24 @@ Truy cap: `/ho-so` (hoac click "Ho so" tren thanh menu)
 - Bài bị xóa **không** trả lại slot
 - Khi tao bai, ban se thay chip "Da dung X/Y bai thang nay" o dau trang
 - Het quota → nut "Dang bai" disable, can doi sang thang sau hoac nang cap
+
+### Sidebar quota tren `/feed` (3.4)
+
+Tu phien ban 3.4, sidebar trang `/feed` hien card **"Hạn mức tháng này"** liet ke
+3 quota chinh:
+- **Bài đăng** — bai feed thang nay (tu `lib/quota.ts`)
+- **Sản phẩm** — sp dang trong thang (tu `lib/product-quota.ts`)
+- **Banner QC** — banner quang cao dang ky thang nay (tu `lib/bannerQuota.ts`)
+
+**PoC mode** (mac dinh BAT trong giai doan demo): tat ca quota hien dang `Đã đăng X · ∞`
+— **không có hạn mức**, ban dang bao nhieu cung duoc. Chi la canh bao thong tin.
+
+**Khi PoC tat** (toan he thong): quota hien thanh **progress bar** voi mau tu dong:
+- Xanh la (emerald): < 60% quota
+- Vang (amber): 60-79%
+- Do (red): ≥ 80% → kem CTA **"Nâng hạng"** dan toi `/gia-han`
+
+> Banner `/banner/dang-ky` cung hien chip `Đã đăng X · ∞` trong PoC mode.
 
 ### Phan loai bai viet (Phase 2)
 Khi tao bai moi, chon **loai bai**:
