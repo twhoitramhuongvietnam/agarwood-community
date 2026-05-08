@@ -213,9 +213,19 @@ export default async function FeedPage({
     }
   })
 
-  // Sidebar data — membershipInfo + quota per-user (không cache được);
-  // topContributors dùng cache 10 phút chung cho mọi viewer.
-  const [membershipInfo, topContributors, postQuota, productQuota, bannerQuota] = await Promise.all([
+  // Sidebar data — gộp toàn bộ vào 1 Promise.all để tránh waterfall.
+  // Tier thresholds trước đây await sequential sau block này (~+100-200ms TTFB)
+  // → giờ song song. Quota functions (post/product/banner) đã cache 60s qua
+  // unstable_cache (xem lib/quota.ts), invalidate khi user post/upload mới.
+  const [
+    membershipInfo,
+    topContributors,
+    postQuota,
+    productQuota,
+    bannerQuota,
+    bizTier,
+    indTier,
+  ] = await Promise.all([
     userId
       ? prisma.user.findUnique({
           where: { id: userId },
@@ -226,6 +236,8 @@ export default async function FeedPage({
     userId ? getQuotaUsage(userId) : null,
     userId ? getProductQuotaUsage(userId) : null,
     userId ? getBannerQuotaUsage(userId) : null,
+    getTierThresholds("BUSINESS"),
+    getTierThresholds("INDIVIDUAL"),
   ])
 
   const quotaInfo = postQuota && productQuota && bannerQuota
@@ -247,11 +259,6 @@ export default async function FeedPage({
         },
       }
     : null
-
-  const [bizTier, indTier] = await Promise.all([
-    getTierThresholds("BUSINESS"),
-    getTierThresholds("INDIVIDUAL"),
-  ])
 
   return (
     <FeedClient

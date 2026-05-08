@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import type { BannerSlot } from "@prisma/client"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
@@ -183,6 +184,9 @@ export async function POST(request: Request) {
     console.error("Failed to send admin notification:", err)
   }
 
+  // Invalidate quota cache cho user — UI sidebar feed sẽ hiện số banner mới
+  // ngay thay vì stale tới 60s.
+  revalidateTag(`quota:${session.user.id}`, "max")
   return NextResponse.json({
     bannerId: result.banner.id,
     paymentId: result.payment.id,

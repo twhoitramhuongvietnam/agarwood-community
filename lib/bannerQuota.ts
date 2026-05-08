@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache"
 import { prisma } from "./prisma"
 import type { Role } from "@prisma/client"
 
@@ -99,35 +100,49 @@ export type BannerQuotaUsage = {
   resetAt: Date // đầu tháng tiếp theo
 }
 
-/** Đếm số banner đã đăng ký trong tháng hiện tại + tính remaining. */
+/** Đếm số banner đã đăng ký trong tháng hiện tại + tính remaining.
+ *  Cache 60s per-user — invalidate qua `revalidateTag(\`quota:${userId}\`)`
+ *  trong route tạo banner (xem app/api/banner/route.ts). */
 export async function getBannerQuotaUsage(userId: string): Promise<BannerQuotaUsage> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true, contributionTotal: true },
-  })
-  if (!user) {
-    return { used: 0, limit: 0, remaining: 0, resetAt: startOfNextMonth() }
-  }
+  const cached = await unstable_cache(
+    async () => {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true, contributionTotal: true },
+      })
+      if (!user) {
+        return { used: 0, limit: 0, remaining: 0, resetAtIso: startOfNextMonth().toISOString() }
+      }
 
-  const limit = await getBannerMonthlyQuota({
-    role: user.role,
-    contributionTotal: user.contributionTotal,
-  })
+      const limit = await getBannerMonthlyQuota({
+        role: user.role,
+        contributionTotal: user.contributionTotal,
+      })
 
-  const monthStart = startOfMonth()
-  const used = await prisma.banner.count({
-    where: {
-      userId,
-      createdAt: { gte: monthStart },
-      // KHÔNG count banner EXPIRED của tháng trước (chỉ tháng hiện tại theo createdAt)
+      const monthStart = startOfMonth()
+      const used = await prisma.banner.count({
+        where: {
+          userId,
+          createdAt: { gte: monthStart },
+          // KHÔNG count banner EXPIRED của tháng trước (chỉ tháng hiện tại theo createdAt)
+        },
+      })
+
+      return {
+        used,
+        limit,
+        remaining: limit === -1 ? -1 : Math.max(0, limit - used),
+        resetAtIso: startOfNextMonth().toISOString(),
+      }
     },
-  })
-
+    ["quota_banner_usage", userId],
+    { revalidate: 60, tags: [`quota:${userId}`, "quota"] },
+  )()
   return {
-    used,
-    limit,
-    remaining: limit === -1 ? -1 : Math.max(0, limit - used),
-    resetAt: startOfNextMonth(),
+    used: cached.used,
+    limit: cached.limit,
+    remaining: cached.remaining,
+    resetAt: new Date(cached.resetAtIso),
   }
 }
 

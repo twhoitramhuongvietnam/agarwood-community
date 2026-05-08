@@ -134,5 +134,7 @@ export async function DELETE(
   })
 
   revalidateTag("feed", "max")
+  // Soft-delete giảm quota count → invalidate cache để UI hiện số mới ngay.
+  revalidateTag(`quota:${post.authorId}`, "max")
   return NextResponse.json({ success: true })
 }

@@ -74,12 +74,19 @@ export async function SidebarBanners() {
 }
 
 export function SidebarBannersSkeleton() {
+  // Render 5 placeholder match số banner tối đa (`take: 5` ở fetchSidebarBanners)
+  // để tránh CLS khi content stream in: skeleton 1 banner → real 1-5 banners
+  // sẽ phình sidebar đẩy footer xuống.
   return (
     <div className="sticky top-20 space-y-3">
       <p className="text-[10px] uppercase tracking-wider font-semibold text-brand-400">
         Quảng cáo
       </p>
-      <Skeleton className="w-full rounded-xl" style={{ aspectRatio: "2 / 3" }} />
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="w-full rounded-xl" style={{ aspectRatio: "2 / 3" }} />
+        ))}
+      </div>
     </div>
   )
 }

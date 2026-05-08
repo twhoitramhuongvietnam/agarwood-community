@@ -20,11 +20,13 @@ const inter = Inter({
   display: "swap",
 })
 
+// display:'optional' (thay vì 'swap') — đồng bộ với (public) layout. Chỉ
+// dùng cho headline serif → FOIT 100ms chấp nhận được, tránh font-swap CLS.
 const merriweather = Merriweather({
   subsets: ["latin", "latin-ext"],
   weight: ["700"],
   variable: "--font-merriweather",
-  display: "swap",
+  display: "optional",
 })
 
 export default function MemberLayout({

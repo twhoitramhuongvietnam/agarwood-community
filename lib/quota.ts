@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache"
 import { prisma } from "./prisma"
 import { calcTier } from "./tier"
 import { isPocUnlimitedMode } from "./poc-mode"
@@ -91,42 +92,56 @@ export type QuotaUsage = {
   resetAt: Date // đầu tháng tiếp theo
 }
 
-/** Đếm số bài đã đăng trong tháng hiện tại + tính remaining. */
+/** Đếm số bài đã đăng trong tháng hiện tại + tính remaining.
+ *  Cache 60s per-user — invalidate qua `revalidateTag(\`quota:${userId}\`)`
+ *  ở các action create/delete post (xem app/api/posts/*). */
 export async function getQuotaUsage(userId: string): Promise<QuotaUsage> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true, contributionTotal: true, accountType: true },
-  })
-  if (!user) {
-    return { used: 0, limit: 0, remaining: 0, resetAt: startOfNextMonth() }
-  }
+  const cached = await unstable_cache(
+    async () => {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true, contributionTotal: true, accountType: true },
+      })
+      if (!user) {
+        return { used: 0, limit: 0, remaining: 0, resetAtIso: startOfNextMonth().toISOString() }
+      }
 
-  const limit = await getMonthlyQuota({
-    role: user.role,
-    contributionTotal: user.contributionTotal,
-    accountType: user.accountType,
-  })
+      const limit = await getMonthlyQuota({
+        role: user.role,
+        contributionTotal: user.contributionTotal,
+        accountType: user.accountType,
+      })
 
-  const monthStart = startOfMonth()
-  const used = await prisma.post.count({
-    where: {
-      authorId: userId,
-      createdAt: { gte: monthStart },
-      // Đếm mọi post user đã tạo trong tháng — gồm cả PENDING (chờ duyệt
-      // mặc định cho non-admin sau migration post_status_pending_default).
-      // Loại trừ DELETED để chống gian lận xóa-rồi-đăng-lại để reset quota.
-      // LOCKED (admin reject hoặc auto-lock từ report) vẫn count vì user đã
-      // "dùng" lượt đăng đó. PENDING count vì nếu không, user sẽ thấy quota
-      // không giảm sau khi vừa đăng → confusing UX.
-      status: { not: "DELETED" },
+      const monthStart = startOfMonth()
+      const used = await prisma.post.count({
+        where: {
+          authorId: userId,
+          createdAt: { gte: monthStart },
+          // Đếm mọi post user đã tạo trong tháng — gồm cả PENDING (chờ duyệt
+          // mặc định cho non-admin sau migration post_status_pending_default).
+          // Loại trừ DELETED để chống gian lận xóa-rồi-đăng-lại để reset quota.
+          // LOCKED (admin reject hoặc auto-lock từ report) vẫn count vì user đã
+          // "dùng" lượt đăng đó. PENDING count vì nếu không, user sẽ thấy quota
+          // không giảm sau khi vừa đăng → confusing UX.
+          status: { not: "DELETED" },
+        },
+      })
+
+      return {
+        used,
+        limit,
+        remaining: limit === -1 ? -1 : Math.max(0, limit - used),
+        resetAtIso: startOfNextMonth().toISOString(),
+      }
     },
-  })
-
+    ["quota_post_usage", userId],
+    { revalidate: 60, tags: [`quota:${userId}`, "quota"] },
+  )()
   return {
-    used,
-    limit,
-    remaining: limit === -1 ? -1 : Math.max(0, limit - used),
-    resetAt: startOfNextMonth(),
+    used: cached.used,
+    limit: cached.limit,
+    remaining: cached.remaining,
+    resetAt: new Date(cached.resetAtIso),
   }
 }
 

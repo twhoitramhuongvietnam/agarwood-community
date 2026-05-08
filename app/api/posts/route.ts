@@ -420,6 +420,9 @@ export async function POST(request: Request) {
     // next visit instead of waiting up to 60s for the revalidate tick.
     revalidatePath("/[locale]/feed", "page")
     revalidateTag("feed", "max")
+    // Invalidate quota cache cho user vừa đăng — tránh hiện stale count
+    // trên sidebar feed sau khi vừa post (TTL 60s là quá lâu cho UX).
+    revalidateTag(`quota:${userId}`, "max")
     return NextResponse.json({ post }, { status: 201 })
   }
 
@@ -523,6 +526,9 @@ export async function POST(request: Request) {
 
   revalidatePath("/[locale]/feed", "page")
   revalidateTag("feed", "max")
+  // Post + Product cùng tạo → invalidate quota cho effectiveOwner (chủ DN
+  // khi admin override, nếu không là user hiện tại). Cả 2 đều "tốn" quota.
+  revalidateTag(`quota:${effectiveOwnerId}`, "max")
   return NextResponse.json(
     { post: { ...created.post, product: created.product } },
     { status: 201 },

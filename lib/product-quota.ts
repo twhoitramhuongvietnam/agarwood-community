@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache"
 import { prisma } from "./prisma"
 import { calcTier } from "./tier"
 import { isPocUnlimitedMode } from "./poc-mode"
@@ -85,35 +86,49 @@ export type ProductQuotaUsage = {
   resetAt: Date
 }
 
-/** Đếm số SP đã đăng trong tháng hiện tại + tính remaining. */
+/** Đếm số SP đã đăng trong tháng hiện tại + tính remaining.
+ *  Cache 60s per-user — invalidate qua `revalidateTag(\`quota:${userId}\`)`
+ *  trong action tạo SP (xem app/(member)/san-pham/_actions.ts). */
 export async function getProductQuotaUsage(userId: string): Promise<ProductQuotaUsage> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true, contributionTotal: true, accountType: true },
-  })
-  if (!user) {
-    return { used: 0, limit: 0, remaining: 0, resetAt: startOfNextMonth() }
-  }
+  const cached = await unstable_cache(
+    async () => {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true, contributionTotal: true, accountType: true },
+      })
+      if (!user) {
+        return { used: 0, limit: 0, remaining: 0, resetAtIso: startOfNextMonth().toISOString() }
+      }
 
-  const limit = await getMonthlyProductQuota({
-    role: user.role,
-    contributionTotal: user.contributionTotal,
-    accountType: user.accountType,
-  })
+      const limit = await getMonthlyProductQuota({
+        role: user.role,
+        contributionTotal: user.contributionTotal,
+        accountType: user.accountType,
+      })
 
-  const monthStart = startOfMonth()
-  const used = await prisma.product.count({
-    where: {
-      ownerId: userId,
-      createdAt: { gte: monthStart },
+      const monthStart = startOfMonth()
+      const used = await prisma.product.count({
+        where: {
+          ownerId: userId,
+          createdAt: { gte: monthStart },
+        },
+      })
+
+      return {
+        used,
+        limit,
+        remaining: limit === -1 ? -1 : Math.max(0, limit - used),
+        resetAtIso: startOfNextMonth().toISOString(),
+      }
     },
-  })
-
+    ["quota_product_usage", userId],
+    { revalidate: 60, tags: [`quota:${userId}`, "quota"] },
+  )()
   return {
-    used,
-    limit,
-    remaining: limit === -1 ? -1 : Math.max(0, limit - used),
-    resetAt: startOfNextMonth(),
+    used: cached.used,
+    limit: cached.limit,
+    remaining: cached.remaining,
+    resetAt: new Date(cached.resetAtIso),
   }
 }
 

@@ -32,14 +32,15 @@ type NewsCategoryValue =
 
 // InlinePostCreator ~500 dòng state + upload logic, chỉ VIP/ADMIN dùng khi
 // muốn đăng bài. Dynamic import + ssr:false để defer parse cost tới sau khi
-// feed đã LCP, giảm TBT ~100-150ms trên mobile Slow 4G. Loading state là
-// 1 placeholder compact để tránh layout shift khi component load xong.
+// feed đã LCP, giảm TBT ~100-150ms trên mobile Slow 4G. Loading placeholder
+// reserve `min-h-[140px]` match composer thật (avatar + textarea + actions
+// row) → tránh CLS khi component hydrate xong và phình layout ra.
 const InlinePostCreator = dynamic(
   () => import("./InlinePostCreator").then((m) => m.InlinePostCreator),
   {
     ssr: false,
     loading: () => (
-      <div className="bg-white rounded-xl border border-brand-200 p-4">
+      <div className="bg-white rounded-xl border border-brand-200 p-4 min-h-[140px]">
         <div className="h-12 animate-pulse rounded-lg bg-brand-50" />
       </div>
     ),

@@ -3,7 +3,7 @@
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { Prisma } from "@prisma/client"
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import { z } from "zod"
 import { getProductQuotaUsage } from "@/lib/product-quota"
 import { writeProductRevision } from "@/lib/product-revision"
@@ -112,6 +112,9 @@ export async function createProduct(formData: Record<string, unknown>) {
 
   revalidatePath("/san-pham-doanh-nghiep")
   revalidatePath("/san-pham-chung-nhan")
+  // Invalidate quota cache cho user — UI sidebar feed sẽ hiện số SP mới ngay
+  // thay vì stale tới 60s.
+  revalidateTag(`quota:${session.user.id}`, "max")
   return { success: true, slug: product.slug }
 }
 
