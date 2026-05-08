@@ -98,12 +98,14 @@ export default async function MembersPage() {
   const l = <T extends Record<string, unknown>>(rec: T, field: string) =>
     localize(rec, field, locale) as string
 
-  // Featured spotlight = top 3 DN có isFeatured. Còn lại đổ xuống directory
-  // grid. Nếu <3 featured, fill placeholder slot "vị trí trống" (nudge admin
-  // hoặc DN đăng ký).
+  // Featured spotlight = top 3 DN có isFeatured. Directory grid nhận TOÀN BỘ
+  // companies (kể cả featured) — DirectorySearch ẩn featured khi không có
+  // query để tránh duplicate visual với spotlight, nhưng cho phép match khi
+  // user search (Bug fix 2026-05: search "Đại Việt" miss vì DN này featured
+  // nên bị loại khỏi cards). Nếu <3 featured, fill placeholder slot "vị trí
+  // trống" (nudge admin hoặc DN đăng ký).
   const featured = companies.filter((c) => c.isFeatured).slice(0, 3)
-  const featuredIds = new Set(featured.map((c) => c.id))
-  const restCompanies = companies.filter((c) => !featuredIds.has(c.id))
+  const spotlightIds = new Set(featured.map((c) => c.id))
 
   const isLoggedIn = !!session?.user
   const ctaHref = isLoggedIn ? "/admin" : "/dang-ky"
@@ -317,7 +319,7 @@ export default async function MembersPage() {
       <section className="bg-brand-50/30">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
           <DirectorySearch
-            cards={restCompanies.map<CompanyCardData>((c) => ({
+            cards={companies.map<CompanyCardData>((c) => ({
               id: c.id,
               slug: c.slug,
               name: l(c, "name"),
@@ -331,6 +333,7 @@ export default async function MembersPage() {
               isFeatured: c.isFeatured,
               productsCount: c._count.products,
             }))}
+            spotlightIds={Array.from(spotlightIds)}
             isAdmin={isAdminUser}
             visitWebsiteLabel={t("visitWebsite")}
             eyebrowLabel={t("directoryEyebrow")}

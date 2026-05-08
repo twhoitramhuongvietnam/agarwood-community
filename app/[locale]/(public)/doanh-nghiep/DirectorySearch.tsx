@@ -16,12 +16,16 @@ import { DirectoryCard, type CompanyCardData } from "./DirectoryCard"
  */
 export function DirectorySearch({
   cards,
+  spotlightIds,
   isAdmin,
   visitWebsiteLabel,
   eyebrowLabel,
   titleLabel,
 }: {
   cards: CompanyCardData[]
+  /** ID các DN đã hiển thị ở spotlight phía trên — ẩn khỏi grid khi không có
+   *  query để tránh duplicate, nhưng vẫn cho match khi user search. */
+  spotlightIds?: string[]
   isAdmin: boolean
   visitWebsiteLabel: string
   /** Section header — server truyền xuống để admin CMS override được. */
@@ -38,10 +42,19 @@ export function DirectorySearch({
     certBadge: (count: number) => t("cardCertBadge", { count }),
     foundedSince: (year: number) => t("foundedSince", { year }),
   }
+  const spotlightSet = useMemo(
+    () => new Set(spotlightIds ?? []),
+    [spotlightIds],
+  )
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return new Set(cards.map((c) => c.id))
+    if (!q) {
+      // Default view: ẩn các DN đang ở spotlight (đã render trên đầu).
+      return new Set(
+        cards.filter((c) => !spotlightSet.has(c.id)).map((c) => c.id),
+      )
+    }
     return new Set(
       cards
         .filter(
@@ -51,7 +64,7 @@ export function DirectorySearch({
         )
         .map((c) => c.id),
     )
-  }, [cards, query])
+  }, [cards, query, spotlightSet])
 
   const visibleCount = matches.size
   const hasQuery = query.trim().length > 0
