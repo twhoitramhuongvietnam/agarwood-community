@@ -95,6 +95,17 @@ export async function PATCH(
 
   const now = new Date()
 
+  // Auto-unpromote theo thời gian — promotedAt đánh dấu thời điểm bài
+  // transition unpromoted → promoted. Cron unpromote-stale daily gỡ cả 2 cờ
+  // sau 2 ngày. "Promoted" = isPromoted=true HOẶC newsCategories non-empty.
+  // Re-save không reset window — admin có thể chỉ đổi categories array.
+  const wasPromoted = post.isPromoted || post.newsCategories.length > 0
+  const finalCategories = newCategories ?? post.newsCategories
+  const willBePromoted = newPromoted || finalCategories.length > 0
+  const promotedAtUpdate: { promotedAt?: Date | null } = {}
+  if (!wasPromoted && willBePromoted) promotedAtUpdate.promotedAt = new Date()
+  else if (wasPromoted && !willBePromoted) promotedAtUpdate.promotedAt = null
+
   // Atomic: post.update + request.updateMany
   await prisma.$transaction(async (tx) => {
     await tx.post.update({
@@ -102,6 +113,7 @@ export async function PATCH(
       data: {
         isPromoted: newPromoted,
         ...(newCategories !== undefined ? { newsCategories: newCategories } : {}),
+        ...promotedAtUpdate,
       },
     })
     if (newPromoted && !post.isPromoted) {

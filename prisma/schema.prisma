@@ -771,6 +771,11 @@ model Post {
   // Visibility
   isPremium  Boolean @default(false) // true nếu author là VIP — set tự động
   isPromoted Boolean @default(false) // admin có thể pin bài lên top
+  // Timestamp khi admin promote bài (set isPromoted=true HOẶC newsCategories
+  // có phần tử). Cron `unpromote-stale` daily gỡ cả 2 cờ sau 2 ngày. Null =
+  // chưa promote bao giờ. Backward-compat: bài có dữ liệu cũ chưa migrate
+  // được backfill = ngày deploy.
+  promotedAt DateTime?
 
   // Ranking — denormalized từ author.displayPriority tại thời điểm đăng
   // Cập nhật lại khi hội viên gia hạn membership

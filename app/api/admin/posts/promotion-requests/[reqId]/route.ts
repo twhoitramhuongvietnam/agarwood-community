@@ -62,6 +62,17 @@ export async function PATCH(
   const now = new Date()
 
   if (body.action === "approve") {
+    // Cần state hiện tại để sync promotedAt — chỉ set new Date() khi bài
+    // transition từ unpromoted sang promoted (cron unpromote-stale daily
+    // sẽ gỡ sau 2 ngày). Nếu bài đã promoted (admin direct-promote trước
+    // khi approve request), giữ promotedAt cũ để không reset window.
+    const post = await prisma.post.findUnique({
+      where: { id: request.postId },
+      select: { isPromoted: true, newsCategories: true },
+    })
+    const wasPromoted =
+      !!post && (post.isPromoted || post.newsCategories.length > 0)
+
     await prisma.$transaction(async (tx) => {
       await tx.postPromotionRequest.update({
         where: { id: reqId },
@@ -74,7 +85,10 @@ export async function PATCH(
       })
       await tx.post.update({
         where: { id: request.postId },
-        data: { isPromoted: true },
+        data: {
+          isPromoted: true,
+          ...(wasPromoted ? {} : { promotedAt: now }),
+        },
       })
     })
 

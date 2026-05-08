@@ -17,6 +17,10 @@
     {
       "path": "/api/cron/unpin-stale",
       "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/unpromote-stale",
+      "schedule": "0 16 * * *"
     }
   ]
 }
