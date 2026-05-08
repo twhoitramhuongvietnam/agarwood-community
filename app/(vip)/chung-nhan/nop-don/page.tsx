@@ -27,6 +27,11 @@ type Product = {
   certStatus: string
   certExpiredAt: string | null
   imageUrls: string[]
+  // True nếu SP đang có đơn DRAFT/PENDING/UNDER_REVIEW trong bảng
+  // Certification. Đây là tín hiệu duy nhất để block không cho user nộp đơn
+  // mới — không dùng `certStatus` vì field này default DRAFT cho mọi SP mới
+  // tạo (dù chưa có đơn nào).
+  hasActiveCert: boolean
 }
 
 type ReviewMode = "ONLINE" | "OFFLINE"
@@ -47,8 +52,12 @@ type Step2Data = {
 
 type Step2Errors = Partial<Record<keyof Step2Data, string>>
 
-// APPROVED không bao giờ chặn: nếu user muốn gia hạn thì cho. Chỉ chặn các đơn đang xử lý.
-const BLOCKING_CERT_STATUSES = ["DRAFT", "PENDING", "UNDER_REVIEW"]
+// "Blocked" = đang có đơn DRAFT/PENDING/UNDER_REVIEW thực sự trong bảng
+// Certification (dùng `hasActiveCert` từ API). KHÔNG dùng `certStatus` vì
+// schema default DRAFT cho mọi SP mới tạo — sẽ false-positive block hết
+// cả 11/12 SP mặc dù user chưa nộp đơn nào (bug 2026-05).
+// APPROVED không block: user vẫn được nộp đơn gia hạn (renewal). Nếu đang
+// có đơn renewal chạy dở thì hasActiveCert=true → block đúng.
 
 const STEP_LABELS = [
   { step: 1, label: "Chọn sản phẩm" },
@@ -182,7 +191,7 @@ export default function NopDonPage() {
   const statusCounts = useMemo(() => {
     return products.reduce(
       (acc, p) => {
-        if (BLOCKING_CERT_STATUSES.includes(p.certStatus)) acc.review++
+        if (p.hasActiveCert) acc.review++
         else if (p.certStatus === "APPROVED") acc.renewal++
         else acc.available++
         return acc
@@ -197,18 +206,18 @@ export default function NopDonPage() {
       .filter((p) => {
         if (q && !p.name.toLowerCase().includes(q)) return false
         if (statusFilter === "all") return true
-        const blocked = BLOCKING_CERT_STATUSES.includes(p.certStatus)
+        const blocked = p.hasActiveCert
         const approved = p.certStatus === "APPROVED"
         if (statusFilter === "review") return blocked
-        if (statusFilter === "renewal") return approved
+        if (statusFilter === "renewal") return !blocked && approved
         if (statusFilter === "available") return !blocked && !approved
         return true
       })
       .sort((a, b) => {
         // Selectable (available + renewal) trước, blocked cuối cho user khỏi
         // mất công lướt qua sản phẩm không thể chọn.
-        const aBlocked = BLOCKING_CERT_STATUSES.includes(a.certStatus) ? 1 : 0
-        const bBlocked = BLOCKING_CERT_STATUSES.includes(b.certStatus) ? 1 : 0
+        const aBlocked = a.hasActiveCert ? 1 : 0
+        const bBlocked = b.hasActiveCert ? 1 : 0
         if (aBlocked !== bBlocked) return aBlocked - bBlocked
         return a.name.localeCompare(b.name, "vi")
       })
@@ -425,7 +434,7 @@ export default function NopDonPage() {
               ) : (
                 <div className="space-y-2">
                   {visibleProducts.map((product) => {
-                    const isBlocked = BLOCKING_CERT_STATUSES.includes(product.certStatus)
+                    const isBlocked = product.hasActiveCert
                     const isApproved = product.certStatus === "APPROVED"
                     const expiredAt = product.certExpiredAt ? new Date(product.certExpiredAt) : null
                     const daysLeft = expiredAt ? Math.floor((expiredAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)) : null
@@ -487,7 +496,11 @@ export default function NopDonPage() {
                             </p>
                           ) : (
                             <p className="text-xs text-brand-500 mt-0.5">
-                              Trạng thái: {product.certStatus}
+                              {product.certStatus === "REJECTED"
+                                ? "Đơn trước bị từ chối — có thể nộp lại"
+                                : product.certStatus === "REFUNDED"
+                                  ? "Đã hoàn tiền — có thể nộp lại"
+                                  : "Chưa có đơn chứng nhận"}
                             </p>
                           )}
                         </div>

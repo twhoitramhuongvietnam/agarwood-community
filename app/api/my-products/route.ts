@@ -8,6 +8,11 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  // `hasActiveCert` = đang có 1 đơn chứng nhận chạy dở (DRAFT/PENDING/
+  // UNDER_REVIEW). User view dùng cờ này để block không cho chọn SP đó —
+  // đúng semantic hơn `Product.certStatus` (vốn default DRAFT cho mọi SP
+  // mới tạo, dù user chưa nộp đơn). API create-order cũng check duplicate
+  // dựa trên Certification table → consistency.
   const products = await prisma.product.findMany({
     where: { ownerId: session.user.id },
     orderBy: { createdAt: "desc" },
@@ -19,8 +24,18 @@ export async function GET() {
       certExpiredAt: true,
       imageUrls: true,
       companyId: true,
+      certifications: {
+        where: { status: { in: ["DRAFT", "PENDING", "UNDER_REVIEW"] } },
+        select: { id: true },
+        take: 1,
+      },
     },
   })
 
-  return NextResponse.json({ products })
+  return NextResponse.json({
+    products: products.map(({ certifications, ...p }) => ({
+      ...p,
+      hasActiveCert: certifications.length > 0,
+    })),
+  })
 }
