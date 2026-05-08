@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import { getTranslations } from "next-intl/server"
+import { auth } from "@/lib/auth"
 import { NewsSection } from "@/components/features/homepage/NewsSection"
 import { MemberRail } from "@/components/features/homepage/MemberRail"
 import { MultimediaSection } from "@/components/features/homepage/MultimediaSection"
@@ -37,7 +38,12 @@ export async function generateMetadata() {
 export const revalidate = 300
 
 export default async function HomePage() {
-  const t = await getTranslations("homepage")
+  // auth() resolved tại parent để JoinBanner render đồng bộ — tránh stream-in
+  // gây CLS ~0.2-0.3 khi banner ~500px push footer xuống.
+  const [t, session] = await Promise.all([
+    getTranslations("homepage"),
+    auth(),
+  ])
 
   const orgJsonLd = {
     "@context": "https://schema.org",
@@ -70,7 +76,7 @@ export default async function HomePage() {
           → wrapper aspect-970/90 không reserve space khi không có banner. */}
       <HomepageTopBannerRow />
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<div className="h-10 border-y border-neutral-200 bg-white" />}>
         <BreakingTicker />
       </Suspense>
 
@@ -151,10 +157,10 @@ export default async function HomePage() {
     </div>
 
     {/* Hero CTA banner — full-width, ngoài max-w-7xl container để gradient
-        bg fill toàn viewport. Chỉ hiện cho guest, gate ở server-side. */}
-    <Suspense fallback={null}>
-      <HomepageJoinBanner />
-    </Suspense>
+        bg fill toàn viewport. Chỉ hiện cho guest, gate ở server-side.
+        Render đồng bộ (không Suspense) để tránh CLS — auth() đã resolve ở
+        parent nên không thêm wait time. */}
+    {!session?.user && <HomepageJoinBanner />}
     </>
   )
 }

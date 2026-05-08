@@ -1,47 +1,80 @@
 import { Skeleton } from "@/components/ui/skeleton"
 
 export function NewsSectionSkeleton() {
+  // Mirror NewsSection thực tế: 12-col grid với hero (col-7) bên trái,
+  // 2 ExcerptCards (col-5) bên phải span 2 rows, 3 stacked items dưới hero.
+  // Match layout này để tránh CLS khi content stream in.
   return (
-    <div className="space-y-6">
-      <div>
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="mt-2 h-4 w-80" />
-      </div>
-      <Skeleton className="h-64 sm:h-80 w-full rounded-xl" />
-      <div className="grid gap-4 sm:grid-cols-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="flex gap-3 p-3 rounded-lg border border-brand-100 bg-white">
-            <Skeleton className="h-20 w-24 shrink-0 rounded" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-20" />
+    <section aria-hidden>
+      <div className="grid gap-8 lg:grid-cols-12">
+        {/* Hero — left col row 1 */}
+        <div className="min-w-0 lg:col-span-7 lg:col-start-1 lg:row-start-1">
+          <Skeleton className="aspect-video w-full" />
+          <Skeleton className="mt-3 h-6 w-5/6" />
+          <Skeleton className="mt-2 h-4 w-3/4" />
+        </div>
+
+        {/* Side excerpts — right col span 2 rows */}
+        <div className="min-w-0 space-y-6 lg:col-span-5 lg:col-start-8 lg:row-span-2 lg:row-start-1">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="aspect-video w-full" />
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-4 w-2/3" />
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+
+        {/* 3 stacked items — left col row 2 */}
+        <div className="min-w-0 space-y-4 lg:col-span-7 lg:col-start-1 lg:row-start-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex gap-3">
+              <Skeleton className="h-20 w-28 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </section>
   )
 }
 
 export function MemberRailSkeleton() {
+  // Mirror MemberRail thực tế: 4 TopItem (cover h-14 + 2 dòng tiêu đề) +
+  // 8 CompactItem (bullet + 2 dòng tiêu đề). Đồng bộ chiều cao để tránh CLS
+  // khi Suspense resolve.
   return (
-    <aside className="rounded-xl border border-brand-200 bg-white overflow-hidden">
-      <div className="px-5 py-4 border-b border-brand-100 bg-brand-50/50">
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="mt-2 h-3 w-56" />
-      </div>
-      <div className="p-3 space-y-2">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="flex gap-3 p-3 rounded-lg border border-brand-100">
-            <Skeleton className="h-20 w-20 rounded" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-3 w-2/3" />
+    <aside>
+      <ul className="divide-y divide-brand-200 border-t border-b border-brand-200">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <li key={i}>
+            <div className="flex items-start gap-3 py-3">
+              <Skeleton className="h-14 w-20 shrink-0" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-3 w-2/3" />
+              </div>
             </div>
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
+      <ul className="mt-4 space-y-2.5">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <li key={i}>
+            <div className="flex gap-2">
+              <span className="shrink-0 font-bold text-brand-700">▸</span>
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-3.5 w-4/5" />
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
     </aside>
   )
 }

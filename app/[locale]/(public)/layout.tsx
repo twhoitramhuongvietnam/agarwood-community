@@ -24,11 +24,13 @@ const inter = Inter({
 // Chỉ tải weight 700 — duy nhất được dùng via `.font-serif-headline` (h1
 // detail + h2 hero list đều là font-bold). Giảm ~40% font payload so với 3
 // weights.
+// display:'optional' (thay vì 'swap') — chỉ dùng cho headline nên FOIT 100ms
+// chấp nhận được; tránh font-swap gây CLS sau khi document đã render.
 const merriweather = Merriweather({
   subsets: ["latin", "latin-ext"],
   weight: ["700"],
   variable: "--font-merriweather",
-  display: "swap",
+  display: "optional",
 })
 
 export default function PublicLayout({
