@@ -3,6 +3,7 @@ import { Be_Vietnam_Pro, Noto_Sans_Arabic } from "next/font/google"
 import Script from "next/script"
 import { headers } from "next/headers"
 import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import { ProgressBar } from "@/components/features/layout/ProgressBar"
 import { WebVitalsReporter } from "@/components/features/layout/WebVitalsReporter"
 import { isRtlLocale, isValidLocale } from "@/i18n/config"
@@ -113,6 +114,7 @@ export default async function RootLayout({
         {/* Vercel Web Analytics — chỉ ghi nhận khi deployed lên Vercel
             (auto no-op trên localhost). Bật/tắt qua dashboard Vercel project. */}
         <Analytics />
+        <SpeedInsights />
 
         {/* Google Analytics 4 */}
         {GA_ID && (
