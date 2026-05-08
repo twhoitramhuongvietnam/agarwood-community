@@ -75,7 +75,7 @@ export async function loadMoreNews(params: {
   }
   const items = await prisma.news.findMany({
     where,
-    orderBy: [{ isPinned: "desc" }, { publishedAt: "desc" }],
+    orderBy: [{ isPinned: "desc" }, { publishedAt: { sort: "desc", nulls: "last" } }],
     skip: params.skip,
     take: params.take + 1,
     select: NEWS_SELECT,

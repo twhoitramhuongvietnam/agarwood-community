@@ -41,7 +41,7 @@ const getDefaultNewsList = unstable_cache(
         ],
         template: TIN_TUC_PUBLIC_TEMPLATE,
       },
-      orderBy: [{ isPinned: "desc" }, { publishedAt: "desc" }],
+      orderBy: [{ isPinned: "desc" }, { publishedAt: { sort: "desc", nulls: "last" } }],
       take,
       select: NEWS_LIST_SELECT,
     }),
@@ -61,7 +61,7 @@ const getSidebarFeaturedNews = unstable_cache(
         ],
         template: TIN_TUC_PUBLIC_TEMPLATE,
       },
-      orderBy: [{ isPinned: "desc" }, { publishedAt: "desc" }],
+      orderBy: [{ isPinned: "desc" }, { publishedAt: { sort: "desc", nulls: "last" } }],
       take: 4,
       select: {
         id: true,
@@ -188,7 +188,7 @@ export default async function NewsPage({
   const newsList = isSearch
     ? await prisma.news.findMany({
         where,
-        orderBy: [{ isPinned: "desc" }, { publishedAt: "desc" }],
+        orderBy: [{ isPinned: "desc" }, { publishedAt: { sort: "desc", nulls: "last" } }],
         take: initialTake,
         select: NEWS_LIST_SELECT,
       })
