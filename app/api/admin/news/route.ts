@@ -530,6 +530,13 @@ export async function POST(req: Request) {
         gallery: validTemplate !== "NORMAL" ? galleryArray : undefined,
         isPublished: finalIsPublished,
         isPinned: isPinned ?? false,
+        // Mốc thời gian ghim cho cron unpin-stale (daily, gỡ sau 2 ngày).
+        // "Pinned" = isPinned=true HOẶC pinnedInCategories có phần tử
+        // (homepage section pin). Bỏ trống nếu không pin gì cả → cron skip.
+        pinnedAt:
+          (isPinned ?? false) || validPinnedInCategories.length > 0
+            ? new Date()
+            : null,
         publishedAt: finalPublishedAt,
         authorId: finalAuthorId,
         // SEO

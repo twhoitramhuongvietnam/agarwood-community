@@ -271,6 +271,22 @@ export async function PATCH(
   // không gửi publishedAt do React batching ở editor".
   const finalIsPublished = "isPublished" in data ? data.isPublished : current.isPublished
   const finalPublishedAt = "publishedAt" in data ? data.publishedAt : current.publishedAt
+
+  // Auto-unpin theo thời gian — pinnedAt đánh dấu thời điểm bài transition
+  // từ unpinned sang pinned (cron unpin-stale daily gỡ cả 2 cờ sau 2 ngày).
+  // "Pinned" = isPinned=true HOẶC pinnedInCategories có ít nhất 1 phần tử
+  // (homepage section pin). Re-save bài đang pin không reset window vì admin
+  // có thể chỉ đang sửa nội dung, không có ý đồ "ghim lại".
+  const wasPinned =
+    current.isPinned || current.pinnedInCategories.length > 0
+  const finalIsPinned = "isPinned" in data ? data.isPinned : current.isPinned
+  const finalPinnedInCategories =
+    "pinnedInCategories" in data
+      ? (data.pinnedInCategories as string[])
+      : current.pinnedInCategories
+  const willBePinned = finalIsPinned || finalPinnedInCategories.length > 0
+  if (!wasPinned && willBePinned) data.pinnedAt = new Date()
+  else if (wasPinned && !willBePinned) data.pinnedAt = null
   if (finalIsPublished === true && !finalPublishedAt) {
     data.publishedAt = new Date()
   }

@@ -1041,6 +1041,10 @@ model News {
   template            NewsTemplate   @default(NORMAL)
   isPublished         Boolean        @default(false)
   isPinned            Boolean        @default(false)
+  // Timestamp khi admin ghim bài. Cron `unpin-stale` daily check, gỡ ghim sau
+  // 2 ngày. Null = bài chưa ghim hoặc đã ghim trước khi feature triển khai
+  // (cron skip để không gỡ nhầm — admin quản lý tay những bài đó).
+  pinnedAt            DateTime?
   publishedAt         DateTime?
   authorId            String // adminId
 
