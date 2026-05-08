@@ -304,7 +304,7 @@ const getMemberPostsPoolCached = unstable_cache(
 export function pickRotatingMembers(
   pool: HomepagePost[],
   excludeIds: string[],
-  count: number = 8,
+  count: number = 7,
 ): HomepagePost[] {
   const bucket = Math.floor(Date.now() / 300_000)
   const rng = mulberry32(bucket)

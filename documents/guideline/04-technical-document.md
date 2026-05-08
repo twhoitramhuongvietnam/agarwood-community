@@ -441,7 +441,7 @@ Section, query chia trong `lib/homepage.ts` voi `unstable_cache`:
 |---------|-------------|-------|-------------|
 | 0. Banner TOP (sau menu) | `HomepageBannerSlot position="TOP"` | 60s | Banner ACTIVE + position=TOP |
 | 1. Tin tuc Hoi | `getAssociationNews` | 300s | News.isPublished — sort: pinnedInCategories has GENERAL → isPinned global → publishedAt DESC (overfetch 21, slice 7) |
-| 2. Ban tin hoi vien (right rail) | `getTopVipMemberPosts` (4 top) + `getRotatingMemberPosts` (8 rotating) | 300s | Top: isPremium OR isPromoted, sort `isPromoted → day VN → contributionTotal → date`. Rotate pool 30 (KHONG filter VIP), score `(log10(contributionTotal+1)+1) * (0.5 + rng())` — Phase 3.7 round 4 (ADR-035) |
+| 2. Ban tin hoi vien (right rail) | `getTopVipMemberPosts` (4 top) + `getRotatingMemberPosts` (7 rotating) | 300s | Top: isPremium OR isPromoted, sort `isPromoted → day VN → contributionTotal → date`. Rotate pool 30 (KHONG filter VIP), score `(log10(contributionTotal+1)+1) * (0.5 + rng())` — Phase 3.7 round 4 (ADR-035) |
 | 3. SP tieu bieu (carousel) | `getFeaturedProductsForHomepage` | 600s | isFeatured=true + owner.role=VIP (Hoi vien) |
 | 4. Banner MID (giua trang) | `HomepageBannerSlot position="MID"` | 60s | Banner ACTIVE + position=MID |
 | 5. Nghien cuu khoa hoc | `getLatestResearchNews(5)` | 300s | category=RESEARCH OR pinnedInCategories has RESEARCH — sort pin first → publishedAt DESC. Layout: 1 hero + 4 sub-hero + SIDEBAR banner |

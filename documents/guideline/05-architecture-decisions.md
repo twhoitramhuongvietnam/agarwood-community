@@ -1676,7 +1676,7 @@ thuat toan:
 - `lib/homepage.ts`:
   - `POST_CARD_SELECT` them `isPromoted` (cho top sort) + `author.contributionTotal`
   - `getTopVipMemberPosts` overfetch 20 + JS sort by-day VN
-  - `pickRotatingMembers` default count 8 + log10 score
+  - `pickRotatingMembers` default count 7 + log10 score
   - `getMemberPostsPoolCached` take 30
 - `components/features/homepage/MemberRail.tsx` — bo `.slice(0, 8)` (dead code,
   picker da tra dung count)

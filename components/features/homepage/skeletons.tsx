@@ -45,7 +45,7 @@ export function NewsSectionSkeleton() {
 
 export function MemberRailSkeleton() {
   // Mirror MemberRail thực tế: 4 TopItem (cover h-14 + 2 dòng tiêu đề) +
-  // 8 CompactItem (bullet + 2 dòng tiêu đề). Đồng bộ chiều cao để tránh CLS
+  // 7 CompactItem (bullet + 2 dòng tiêu đề). Đồng bộ chiều cao để tránh CLS
   // khi Suspense resolve.
   return (
     <aside>
@@ -63,7 +63,7 @@ export function MemberRailSkeleton() {
         ))}
       </ul>
       <ul className="mt-4 space-y-2.5">
-        {Array.from({ length: 8 }).map((_, i) => (
+        {Array.from({ length: 7 }).map((_, i) => (
           <li key={i}>
             <div className="flex gap-2">
               <span className="shrink-0 font-bold text-brand-700">▸</span>
