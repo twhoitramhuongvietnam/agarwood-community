@@ -78,7 +78,7 @@ export default async function ThuChiDashboardPage() {
 
       {/* Balance + monthly cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-brand-700 to-brand-900 text-white rounded-2xl p-5 shadow-sm">
+        <div className="bg-linear-to-br from-brand-700 to-brand-900 text-white rounded-2xl p-5 shadow-sm">
           <div className="flex items-center gap-2 text-brand-100 text-xs font-medium uppercase tracking-wide">
             <Wallet className="h-3.5 w-3.5" /> Số dư hiện tại
           </div>
