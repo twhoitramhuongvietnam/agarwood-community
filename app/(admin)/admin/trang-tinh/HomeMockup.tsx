@@ -194,7 +194,7 @@ export function HomeMockup({ selectedKey, onSelect, configMap, defaultValues }: 
                 <br />
                 P. Xuân Hòa, TP. HCM
                 <br />
-                <span className="text-neutral-400">contact@hoitramhuong.vn</span>
+                <span className="text-neutral-400">hoitramhuongvietnam2010@gmail.com</span>
               </div>
             </div>
 

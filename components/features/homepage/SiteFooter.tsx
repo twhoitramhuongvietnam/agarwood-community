@@ -35,10 +35,18 @@ const getLeadership = unstable_cache(
   { revalidate: 600, tags: ["footer", "leaders"] },
 )
 
+const getAssociationEmail = unstable_cache(
+  async () =>
+    (await prisma.siteConfig.findUnique({ where: { key: "association_email" } }))?.value ?? null,
+  ["site_footer_association_email"],
+  { revalidate: 600, tags: ["footer", "site-config"] },
+)
+
 export async function SiteFooter() {
   const locale = (await getLocale()) as Locale
-  const [leaders, t, tCommon, tNav] = await Promise.all([
+  const [leaders, associationEmail, t, tCommon, tNav] = await Promise.all([
     getLeadership(),
+    getAssociationEmail(),
     // pageKey "home" + fallbackNamespace "footer" → admin /admin/trang-tinh
     // ?page=home edit text trực tiếp, không cần thay đổi messages files.
     getStaticTexts("home", locale, "footer"),
@@ -187,13 +195,17 @@ export async function SiteFooter() {
             Phường Xuân Hòa
             <br />
             Thành phố Hồ Chí Minh
-            <br />
-            <a
-              href="mailto:contact@hoitramhuong.vn"
-              className="hover:text-white hover:underline"
-            >
-              contact@hoitramhuong.vn
-            </a>
+            {associationEmail && (
+              <>
+                <br />
+                <a
+                  href={`mailto:${associationEmail}`}
+                  className="hover:text-white hover:underline"
+                >
+                  {associationEmail}
+                </a>
+              </>
+            )}
           </address>
         </div>
 

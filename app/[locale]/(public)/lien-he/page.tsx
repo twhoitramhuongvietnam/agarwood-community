@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils"
 import { getLocale, getTranslations } from "next-intl/server"
 import type { Locale } from "@/i18n/config"
+import { prisma } from "@/lib/prisma"
 import { ContactForm } from "./ContactForm"
 import { OfficialChannelsBlock } from "@/components/features/layout/OfficialChannelsBlock"
 import { getStaticTexts } from "@/lib/static-texts"
@@ -20,7 +21,11 @@ export default async function LienHePage() {
   const locale = (await getLocale()) as Locale
   // `t` đọc StaticPageConfig (admin CMS override) trước, fallback messages —
   // admin /admin/trang-tinh?page=contact có thể chỉnh trực tiếp.
-  const t = await getStaticTexts("contact", locale)
+  const [t, emailRow] = await Promise.all([
+    getStaticTexts("contact", locale),
+    prisma.siteConfig.findUnique({ where: { key: "association_email" } }),
+  ])
+  const associationEmail = emailRow?.value ?? null
 
   return (
     <div>
@@ -56,15 +61,17 @@ export default async function LienHePage() {
                   </div>
                 </li>
 
-                <li className="flex items-start gap-4">
-                  <span className="mt-0.5 shrink-0 text-xl">📧</span>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-brand-500 mb-0.5">{t("email")}</p>
-                    <a href="mailto:hoitramhuongvietnam2010@gmail.com" className="text-brand-800 font-medium hover:text-brand-600 hover:underline break-all">
-                      hoitramhuongvietnam2010@gmail.com
-                    </a>
-                  </div>
-                </li>
+                {associationEmail && (
+                  <li className="flex items-start gap-4">
+                    <span className="mt-0.5 shrink-0 text-xl">📧</span>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-brand-500 mb-0.5">{t("email")}</p>
+                      <a href={`mailto:${associationEmail}`} className="text-brand-800 font-medium hover:text-brand-600 hover:underline break-all">
+                        {associationEmail}
+                      </a>
+                    </div>
+                  </li>
+                )}
 
                 <li className="flex items-start gap-4">
                   <span className="mt-0.5 shrink-0 text-xl">📍</span>

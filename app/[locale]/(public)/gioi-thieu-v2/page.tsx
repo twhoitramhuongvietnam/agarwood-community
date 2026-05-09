@@ -61,37 +61,39 @@ export async function generateMetadata() {
   }
 }
 
-const orgJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: "Hội Trầm Hương Việt Nam",
-  alternateName: "VAWA — Vietnam Agarwood Association",
-  url: "https://hoitramhuong.vn",
-  logo: "https://hoitramhuong.vn/logo.png",
-  foundingDate: "2010-01-11",
-  description:
-    "Tổ chức xã hội nghề nghiệp kết nối, phát triển cộng đồng doanh nghiệp trầm hương Việt Nam.",
-  address: {
-    "@type": "PostalAddress",
-    streetAddress: "Số 150, Đường Lý Chính Thắng, Phường Xuân Hòa",
-    addressLocality: "Thành phố Hồ Chí Minh",
-    postalCode: "700000",
-    addressCountry: "VN",
-  },
-  contactPoint: [
-    {
-      "@type": "ContactPoint",
-      telephone: "+84-913-810-060",
-      contactType: "Chairman",
-      email: "hoitramhuongvietnam2010@gmail.com",
+function buildOrgJsonLd(associationEmail: string | null) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Hội Trầm Hương Việt Nam",
+    alternateName: "VAWA — Vietnam Agarwood Association",
+    url: "https://hoitramhuong.vn",
+    logo: "https://hoitramhuong.vn/logo.png",
+    foundingDate: "2010-01-11",
+    description:
+      "Tổ chức xã hội nghề nghiệp kết nối, phát triển cộng đồng doanh nghiệp trầm hương Việt Nam.",
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: "Số 150, Đường Lý Chính Thắng, Phường Xuân Hòa",
+      addressLocality: "Thành phố Hồ Chí Minh",
+      postalCode: "700000",
+      addressCountry: "VN",
     },
-    {
-      "@type": "ContactPoint",
-      telephone: "+84-938-334-647",
-      contactType: "Vice Chairman",
-    },
-  ],
-  sameAs: ["https://www.facebook.com/hoitramhuongvietnam.org"],
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        telephone: "+84-913-810-060",
+        contactType: "Chairman",
+        ...(associationEmail ? { email: associationEmail } : {}),
+      },
+      {
+        "@type": "ContactPoint",
+        telephone: "+84-938-334-647",
+        contactType: "Vice Chairman",
+      },
+    ],
+    sameAs: ["https://www.facebook.com/hoitramhuongvietnam.org"],
+  }
 }
 
 const FOUNDING_YEAR = 2010
@@ -99,11 +101,14 @@ const FOUNDING_YEAR = 2010
 export default async function GioiThieuV2Page() {
   const locale = (await getLocale()) as Locale
 
-  const [rawLeaders, rawMembers, t] = await Promise.all([
+  const [rawLeaders, rawMembers, t, emailRow] = await Promise.all([
     getLeadersAndMembers().then((res) => res[0]),
     getLeadersAndMembers().then((res) => res[1]),
     getStaticTexts("about", locale),
+    prisma.siteConfig.findUnique({ where: { key: "association_email" } }),
   ])
+  const associationEmail = emailRow?.value ?? null
+  const orgJsonLd = buildOrgJsonLd(associationEmail)
   const totalMemberCount = rawMembers.length
 
   const currentTerm = rawLeaders[0]?.term ?? null
@@ -333,10 +338,12 @@ export default async function GioiThieuV2Page() {
                   <div className="ic">☏</div>
                   <div>0913 810 060 · 0938 334 647</div>
                 </li>
-                <li>
-                  <div className="ic">✉</div>
-                  <div>hoitramhuongvietnam2010@gmail.com</div>
-                </li>
+                {associationEmail && (
+                  <li>
+                    <div className="ic">✉</div>
+                    <div>{associationEmail}</div>
+                  </li>
+                )}
               </ul>
             </div>
           </div>
