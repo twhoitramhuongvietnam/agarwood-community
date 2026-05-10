@@ -152,59 +152,72 @@ function MemberRow({
 }) {
   const hasProfile = !!member.leaderProfile
   return (
-    <li className="flex items-center gap-4 px-5 py-3 hover:bg-brand-50/40 transition-colors">
-      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-brand-100">
-        {member.user.avatarUrl ? (
-          <Image
-            src={member.user.avatarUrl}
-            alt=""
-            fill
-            sizes="40px"
-            className="object-cover"
-          />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center text-xs font-bold text-brand-500">
-            {member.user.name.charAt(0)?.toUpperCase() ?? "?"}
-          </span>
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Link
-            href={`/admin/hoi-vien/${member.user.id}`}
-            className="font-semibold text-brand-900 hover:underline"
-          >
-            {member.user.name}
-          </Link>
-          <span className="text-xs text-brand-500">· {member.user.email}</span>
-          {member.user.role === "INFINITE" && (
-            <span className="inline-flex items-center rounded-full bg-gray-900 text-amber-200 px-2 py-0.5 text-[10px] font-semibold">
-              ∞
+    // Mobile: stack cột (avatar+info hàng 1, badge profile dưới) — tránh
+    // tình huống cột phải `shrink-0` ngốn ~140px khiến name wrap mỗi từ.
+    // sm trở lên: layout 3 cột như trước.
+    <li className="flex flex-col gap-2 px-3 py-3 hover:bg-brand-50/40 transition-colors sm:flex-row sm:items-center sm:gap-4 sm:px-5">
+      <div className="flex items-start gap-3 min-w-0 flex-1 sm:items-center sm:gap-4">
+        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-brand-100">
+          {member.user.avatarUrl ? (
+            <Image
+              src={member.user.avatarUrl}
+              alt=""
+              fill
+              sizes="40px"
+              className="object-cover"
+            />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center text-xs font-bold text-brand-500">
+              {member.user.name.charAt(0)?.toUpperCase() ?? "?"}
             </span>
           )}
         </div>
-        <p className="mt-0.5 text-xs text-brand-600">
-          {member.position ? (
-            <span className="font-medium">{member.position}</span>
-          ) : (
-            <span className="italic text-brand-400">(chưa đặt vai trò)</span>
-          )}
-          {member.user.company?.name && (
-            <span className="ml-2 text-brand-400">· {member.user.company.name}</span>
-          )}
-        </p>
+
+        <div className="min-w-0 flex-1">
+          {/* Name + INFINITE badge cùng dòng — đảm bảo name không bị
+              email/role chen chân làm wrap mỗi từ. */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              href={`/admin/hoi-vien/${member.user.id}`}
+              className="font-semibold text-brand-900 hover:underline"
+            >
+              {member.user.name}
+            </Link>
+            {member.user.role === "INFINITE" && (
+              <span className="inline-flex items-center rounded-full bg-gray-900 text-amber-200 px-2 py-0.5 text-[10px] font-semibold">
+                ∞
+              </span>
+            )}
+          </div>
+          {/* Email tách dòng — `truncate` chống email dài đẩy width parent.
+              Mobile thấy đầy đủ nhờ width 100% của parent cột. */}
+          <p className="mt-0.5 text-xs text-brand-500 truncate">
+            {member.user.email}
+          </p>
+          <p className="mt-0.5 text-xs text-brand-600">
+            {member.position ? (
+              <span className="font-medium">{member.position}</span>
+            ) : (
+              <span className="italic text-brand-400">(chưa đặt vai trò)</span>
+            )}
+            {member.user.company?.name && (
+              <span className="ml-2 text-brand-400">· {member.user.company.name}</span>
+            )}
+          </p>
+        </div>
       </div>
 
-      <div className="shrink-0 text-right">
+      {/* Badge profile — mobile: indent ngang avatar (52px = 40 avatar + 12 gap)
+          để align với phần info, không flush sát mép. sm+: shrink-0 text-right
+          giữ layout cũ. */}
+      <div className="ml-[52px] sm:ml-0 sm:shrink-0 sm:text-right">
         {isInternal ? (
           <span className="text-[11px] text-brand-400 italic">
             (không public)
           </span>
         ) : hasProfile ? (
-          <div className="flex flex-col items-end gap-0.5">
+          <div className="flex flex-row items-center gap-2 sm:flex-col sm:items-end sm:gap-0.5">
             {member.leaderProfile?.crossCategory ? (
-              // Leader row có category khác committee hiện tại — share profile
               <span
                 className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-2 py-0.5 text-[11px] font-medium text-sky-700"
                 title="Profile này gốc ở ban khác, được share cho ban hiện tại (Hướng C)"
