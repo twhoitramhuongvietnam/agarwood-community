@@ -240,7 +240,7 @@ export function MenuManager({ initialItems }: { initialItems: Item[] }) {
         </Field>
 
         <div className="flex flex-wrap gap-3 text-sm pt-1">
-          <Toggle label="Hiển thị" checked={form.isVisible} onChange={(v) => setForm({ ...form, isVisible: v })} disabled={readOnly} />
+          <Toggle label="Đang dùng (hiện trên menu)" checked={form.isVisible} onChange={(v) => setForm({ ...form, isVisible: v })} disabled={readOnly} />
           <Toggle label="Badge MỚI" checked={form.isNew} onChange={(v) => setForm({ ...form, isNew: v })} disabled={readOnly} />
           <Toggle label="Sắp có" checked={form.comingSoon} onChange={(v) => setForm({ ...form, comingSoon: v })} disabled={readOnly} />
           <Toggle label="Mở tab mới" checked={form.openInNewTab} onChange={(v) => setForm({ ...form, openInNewTab: v })} disabled={readOnly} />
@@ -306,7 +306,7 @@ function Row({
       <span className="text-xs text-brand-400 w-6 text-right">#{it.sortOrder}</span>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className={"font-medium truncate " + (it.isVisible ? "text-brand-900" : "text-brand-400 line-through")}>
+          <span className={"font-medium truncate " + (it.isVisible ? "text-brand-900" : "text-brand-400")}>
             {it.label}
           </span>
           {it.isNew && <Tag color="red">MỚI</Tag>}
@@ -321,10 +321,15 @@ function Row({
       <button
         onClick={onToggle}
         disabled={readOnly}
-        title={readOnly ? READ_ONLY_TOOLTIP : it.isVisible ? "Ẩn" : "Hiện"}
-        className="text-xs px-2 py-1 rounded border border-brand-300 text-brand-600 hover:bg-brand-100 disabled:opacity-50"
+        title={readOnly ? READ_ONLY_TOOLTIP : it.isVisible ? "Bấm để ẩn khỏi menu" : "Bấm để hiển thị trên menu"}
+        className={
+          "text-xs px-3 py-1 rounded-full font-medium border transition-colors disabled:opacity-50 " +
+          (it.isVisible
+            ? "bg-green-50 text-green-700 border-green-300 hover:bg-green-100"
+            : "bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200")
+        }
       >
-        {it.isVisible ? "Ẩn" : "Hiện"}
+        {it.isVisible ? "✓ Đang dùng" : "○ Chưa dùng"}
       </button>
       {onAddChild && (
         <button

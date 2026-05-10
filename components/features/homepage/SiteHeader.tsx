@@ -4,9 +4,50 @@ import { getLocale, getTranslations } from "next-intl/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import type { Locale } from "@/i18n/config"
-import { CategoryBar } from "./CategoryBar"
+import { CategoryBar, type CategoryBarItem } from "./CategoryBar"
 import { LocaleFlags } from "./LocaleFlags"
 import { UserMenu } from "@/components/features/layout/UserMenu"
+import { getMenuTree, type MenuNode } from "@/lib/menu"
+import { localize } from "@/i18n/localize"
+
+// Routes nội bộ (không có [locale] segment) — không prefix locale vào href.
+// Khớp danh sách trong Navbar để consistent.
+const INTERNAL_PREFIXES = [
+  "/tong-quan", "/admin", "/dashboard", "/ho-so",
+  "/gia-han", "/chung-nhan", "/company", "/doanh-nghiep-cua-toi",
+  "/doanh-nghiep/chinh-sua", "/san-pham/tao-moi", "/certification",
+  "/thanh-toan", "/ket-nap", "/tai-lieu", "/members", "/certifications",
+  "/media-orders",
+]
+function isInternalHref(href: string): boolean {
+  return INTERNAL_PREFIXES.some((p) => href === p || href.startsWith(p + "/"))
+}
+
+function localizeMenuForCategoryBar(nodes: MenuNode[], locale: Locale): CategoryBarItem[] {
+  function prefixHref(href: string): string {
+    if (isInternalHref(href)) return href
+    return href === "/" ? `/${locale}` : `/${locale}${href}`
+  }
+  function prefixMatchPrefixes(prefixes: string[]): string[] {
+    return prefixes.map((p) => (isInternalHref(p) ? p : `/${locale}${p}`))
+  }
+  return nodes.map((n) => ({
+    menuKey: n.menuKey,
+    label: localize(n, "label", locale) as string,
+    href: prefixHref(n.href),
+    isNew: n.isNew,
+    comingSoon: n.comingSoon,
+    openInNewTab: n.openInNewTab,
+    matchPrefixes: prefixMatchPrefixes(n.matchPrefixes),
+    children: n.children.map((c) => ({
+      menuKey: c.menuKey,
+      label: localize(c, "label", locale) as string,
+      href: prefixHref(c.href),
+      matchPrefixes: prefixMatchPrefixes(c.matchPrefixes),
+      openInNewTab: c.openInNewTab,
+    })),
+  }))
+}
 
 // Map app locale → BCP-47 tag Intl.DateTimeFormat hiểu. Giữ dải hẹp vì
 // mỗi locale chỉ có duy nhất một region-hint chính thức trong dự án.
@@ -33,15 +74,17 @@ function formatToday(locale: Locale): string {
 }
 
 export async function SiteHeader() {
-  const [locale, session, tCommon, tNav] = await Promise.all([
+  const [locale, session, tCommon, tNav, menuTree] = await Promise.all([
     getLocale() as Promise<Locale>,
     auth(),
     getTranslations("common"),
     getTranslations("navbar"),
+    getMenuTree(),
   ])
   const today = formatToday(locale)
   const user = session?.user
   const siteName = tCommon("siteName")
+  const categoryItems = localizeMenuForCategoryBar(menuTree, locale)
 
   // Nếu user là đại diện doanh nghiệp, fetch tên + slug company để UserMenu
   // dẫn về `/{locale}/doanh-nghiep/{slug}`. Chỉ query khi đã login.
@@ -149,7 +192,7 @@ export async function SiteHeader() {
           mất, nhưng category bar pin cứng top viewport.
           loggedIn={!!user} → guest thấy thêm 2 CTA Đăng nhập + Đăng ký ở cuối
           dãy menu. */}
-      <CategoryBar loggedIn={!!user} />
+      <CategoryBar loggedIn={!!user} items={categoryItems} />
     </>
   )
 }

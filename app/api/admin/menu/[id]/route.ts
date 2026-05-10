@@ -20,7 +20,26 @@ export async function PATCH(
   if (typeof body.label === "string") data.label = body.label.trim()
   if ("label_en" in body) data.label_en = typeof body.label_en === "string" && body.label_en.trim() ? body.label_en.trim() : null
   if ("label_zh" in body) data.label_zh = typeof body.label_zh === "string" && body.label_zh.trim() ? body.label_zh.trim() : null
-  if (typeof body.href === "string") data.href = body.href.trim()
+  if (typeof body.href === "string") {
+    const newHref = body.href.trim()
+    if (newHref) {
+      // Strict dedup: chặn nếu đường dẫn này đã có ở mục KHÁC. Bỏ qua chính
+      // item đang sửa (id khớp) — admin có thể save lại mà không đổi href.
+      const dup = await prisma.menuItem.findFirst({
+        where: { href: newHref, id: { not: id } },
+        select: { id: true, label: true, isVisible: true },
+      })
+      if (dup) {
+        return NextResponse.json(
+          {
+            error: `Đường dẫn "${newHref}" đã có ở mục "${dup.label}" (${dup.isVisible ? "đang dùng" : "chưa dùng"}). Mỗi đường dẫn chỉ được dùng 1 lần.`,
+          },
+          { status: 409 },
+        )
+      }
+      data.href = newHref
+    }
+  }
   if ("menuKey" in body) {
     const k = body.menuKey
     data.menuKey = typeof k === "string" && k.trim() ? k.trim() : null

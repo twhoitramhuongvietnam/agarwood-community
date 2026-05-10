@@ -7,34 +7,27 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom"
 import { locales } from "@/i18n/config"
 
-type SubItem = { labelKey: string; href: string }
-type NavItem =
-  | { labelKey: string; href: string; children?: never }
-  | { labelKey: string; href: string; children: SubItem[] }
-
-const CATEGORIES: NavItem[] = [
-  { labelKey: "home", href: "/" },
-  { labelKey: "news", href: "/tin-tuc" },
-  { labelKey: "research", href: "/nghien-cuu" },
-  // Phase 3.5 (2026-04): 2 menu mới — tin báo chí ngoài + khuyến nông.
-  // Tin báo chí ẩn theo yêu cầu khách (giữ route + admin editor để
-  // tương lai bật lại không tốn refactor).
-  { labelKey: "agriculture", href: "/khuyen-nong" },
-  { labelKey: "socialFeed", href: "/feed" },
-  { labelKey: "businesses", href: "/doanh-nghiep" },
-  { labelKey: "products", href: "/san-pham-chung-nhan" },
-  {
-    labelKey: "about",
-    href: "/gioi-thieu-v2",
-    children: [
-      { labelKey: "leadership", href: "/ban-lanh-dao" },
-      { labelKey: "members", href: "/hoi-vien" },
-      { labelKey: "legalDocs", href: "/phap-ly" },
-      { labelKey: "charter", href: "/dieu-le" },
-    ],
-  },
-  { labelKey: "contact", href: "/lien-he" },
-]
+// Phase 3.7 round 5 (2026-05): menu chuyển từ hardcode → CMS-driven. Items
+// được fetch ở SiteHeader (server) qua getMenuTree() và đã localize trước khi
+// truyền xuống. Admin sửa ở /admin/menu → effect ngay tại đây sau cache 60s
+// (xem lib/menu.ts).
+export type CategoryBarSubItem = {
+  menuKey: string | null
+  label: string
+  href: string
+  matchPrefixes?: string[]
+  openInNewTab?: boolean
+}
+export type CategoryBarItem = {
+  menuKey: string | null
+  label: string
+  href: string
+  isNew?: boolean
+  comingSoon?: boolean
+  openInNewTab?: boolean
+  matchPrefixes?: string[]
+  children?: CategoryBarSubItem[]
+}
 
 /** Strip locale prefix (/vi, /en, ...) để so khớp với href đã khai báo. */
 function stripLocale(path: string): string {
@@ -46,16 +39,26 @@ function stripLocale(path: string): string {
 }
 
 /** Match exact hoặc prefix (để trang detail `/tin-tuc/foo` vẫn highlight
- *  parent `/tin-tuc`). Trang chủ `/` phải match chính xác, không ăn mọi path. */
-function matchesPath(itemHref: string, pathname: string): boolean {
-  if (itemHref === "/") return pathname === "/"
-  return pathname === itemHref || pathname.startsWith(itemHref + "/")
+ *  parent `/tin-tuc`). Trang chủ `/` phải match chính xác, không ăn mọi path.
+ *  Đã loại bỏ locale prefix (vd "/vi") khỏi cả `pathname` và item.href trước
+ *  khi gọi — xem stripLocale dưới. */
+function matchesPath(itemHref: string, pathname: string, prefixes: string[] = []): boolean {
+  const exact = itemHref === "/" ? pathname === "/" : (pathname === itemHref || pathname.startsWith(itemHref + "/"))
+  if (exact) return true
+  for (const p of prefixes) {
+    if (!p) continue
+    if (pathname === p || pathname.startsWith(p + "/")) return true
+  }
+  return false
 }
 
-function isItemActive(item: NavItem, pathname: string): boolean {
-  if (matchesPath(item.href, pathname)) return true
-  if ("children" in item && item.children) {
-    return item.children.some((c) => matchesPath(c.href, pathname))
+function isItemActive(item: CategoryBarItem, pathname: string): boolean {
+  const itemHref = stripLocale(item.href)
+  if (matchesPath(itemHref, pathname, item.matchPrefixes ?? [])) return true
+  if (item.children && item.children.length > 0) {
+    return item.children.some((c) =>
+      matchesPath(stripLocale(c.href), pathname, c.matchPrefixes ?? []),
+    )
   }
   return false
 }
@@ -67,9 +70,10 @@ const BASE_TRIGGER =
  *  CategoryBar. Logged-in → skip vì UserMenu đã ở utility strip. */
 type Props = {
   loggedIn?: boolean
+  items: CategoryBarItem[]
 }
 
-export function CategoryBar({ loggedIn = false }: Props) {
+export function CategoryBar({ loggedIn = false, items }: Props) {
   const pathname = stripLocale(usePathname() || "/")
   const t = useTranslations("navbar")
 
@@ -169,9 +173,7 @@ export function CategoryBar({ loggedIn = false }: Props) {
 
   // Tìm item đang mở để render children trong portal
   const openItem = openHref
-    ? (CATEGORIES.find((it) => it.href === openHref && "children" in it) as
-        | (NavItem & { children: SubItem[] })
-        | undefined)
+    ? items.find((it) => it.href === openHref && it.children && it.children.length > 0)
     : undefined
 
   return (
@@ -202,9 +204,9 @@ export function CategoryBar({ loggedIn = false }: Props) {
             R-mobile-fix: dropdown đã chuyển sang portal (renders vào body),
             không còn phụ thuộc overflow của ul → mobile dropdown work. */}
         <ul ref={ulRef} className="category-scroll flex overflow-x-auto overflow-y-hidden whitespace-nowrap [touch-action:pan-x] pt-0.5 sm:pt-0 lg:overflow-visible">
-          {CATEGORIES.map((item) => {
+          {items.map((item) => {
             const active = isItemActive(item, pathname)
-            const hasChildren = "children" in item && !!item.children
+            const hasChildren = !!(item.children && item.children.length > 0)
             const isOpen = openHref === item.href
             const triggerClass = [
               BASE_TRIGGER,
@@ -234,6 +236,8 @@ export function CategoryBar({ loggedIn = false }: Props) {
                   aria-haspopup="true"
                   aria-expanded={isOpen}
                   aria-current={active ? "page" : undefined}
+                  target={item.openInNewTab ? "_blank" : undefined}
+                  rel={item.openInNewTab ? "noopener noreferrer" : undefined}
                   onClick={(e) => {
                     // First tap (touch hoặc mouse): mở dropdown thay vì navigate.
                     // Tap lần 2 trên parent (khi đã open) → navigate bình thường.
@@ -243,7 +247,7 @@ export function CategoryBar({ loggedIn = false }: Props) {
                     }
                   }}
                 >
-                  {t(item.labelKey)}
+                  {item.label}
                   <Chevron />
                 </Link>
               </li>
@@ -253,16 +257,19 @@ export function CategoryBar({ loggedIn = false }: Props) {
                   href={item.href}
                   className={triggerClass}
                   aria-current={active ? "page" : undefined}
+                  target={item.openInNewTab ? "_blank" : undefined}
+                  rel={item.openInNewTab ? "noopener noreferrer" : undefined}
                 >
-                  {t(item.labelKey)}
+                  {item.label}
                 </Link>
                 {/* Phase 3.7 (2026-04): badge demo cho MXH Trầm Hương —
                     nhắc user tính năng đang ở giai đoạn beta. Dùng CSS
                     thuần thay vì PNG vì file demo_icon.png có pixel xung
                     quanh bubble là white-opaque (alpha=255) — bất kỳ blend
                     mode nào cũng phá readability của chữ DEMO trong bubble.
-                    CSS badge: rõ ràng, scale chuẩn, không phụ thuộc asset. */}
-                {item.labelKey === "socialFeed" && (
+                    Phase 3.7 round 5 (2026-05): match qua menuKey thay vì
+                    labelKey vì menu đã chuyển sang DB-driven. */}
+                {item.menuKey === "feed" && (
                   <span
                     className="pointer-events-none absolute right-0.5 -top-0.5 inline-flex items-center justify-center rounded-md bg-red-600 px-1 py-px text-[8px] font-extrabold uppercase tracking-wide text-white shadow-md ring-1 ring-red-700/40 sm:right-1 sm:-top-2 sm:px-1.5 sm:py-0.5 sm:text-[10px] sm:tracking-wider"
                     title="Tính năng đang trong giai đoạn demo"
@@ -306,13 +313,15 @@ export function CategoryBar({ loggedIn = false }: Props) {
             onMouseEnter={cancelClose}
             onMouseLeave={scheduleClose}
           >
-            {openItem.children.map((sub) => {
-              const subActive = matchesPath(sub.href, pathname)
+            {openItem.children!.map((sub) => {
+              const subActive = matchesPath(stripLocale(sub.href), pathname, sub.matchPrefixes ?? [])
               return (
                 <li key={sub.href} role="none">
                   <Link
                     href={sub.href}
                     role="menuitem"
+                    target={sub.openInNewTab ? "_blank" : undefined}
+                    rel={sub.openInNewTab ? "noopener noreferrer" : undefined}
                     onClick={() => setOpenHref(null)}
                     className={[
                       "block px-4 py-2.5 text-[13px] font-medium uppercase tracking-wide transition-colors",
@@ -322,7 +331,7 @@ export function CategoryBar({ loggedIn = false }: Props) {
                     ].join(" ")}
                     aria-current={subActive ? "page" : undefined}
                   >
-                    {t(sub.labelKey)}
+                    {sub.label}
                   </Link>
                 </li>
               )

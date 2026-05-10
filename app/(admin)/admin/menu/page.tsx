@@ -23,6 +23,16 @@ export default async function AdminMenuPage() {
           Dùng <code className="px-1 bg-brand-100 rounded">matchPrefixes</code> để
           highlight menu cha khi user vào trang con (vd: <code>/bai-viet</code>).
         </p>
+        <div className="mt-3 flex flex-wrap gap-4 text-xs text-brand-700">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
+            <strong>Đang dùng</strong> — hiển thị trên thanh menu trang chủ.
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-gray-300" />
+            <strong>Chưa dùng</strong> — ẩn khỏi menu (vẫn truy cập được qua URL trực tiếp).
+          </span>
+        </div>
       </div>
       <MenuManager initialItems={items.map((i) => ({
         ...i,

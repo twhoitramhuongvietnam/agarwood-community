@@ -43,12 +43,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Thiếu href" }, { status: 400 })
   }
 
+  // Strict: chặn duplicate href. Mỗi page chỉ được biểu diễn bởi đúng 1
+  // menu item — đảm bảo không có state mâu thuẫn (vd row A đang dùng + row
+  // B chưa dùng cùng trỏ về 1 trang).
+  const trimmedHref = href.trim()
+  const dup = await prisma.menuItem.findFirst({
+    where: { href: trimmedHref },
+    select: { id: true, label: true, isVisible: true },
+  })
+  if (dup) {
+    return NextResponse.json(
+      {
+        error: `Đường dẫn "${trimmedHref}" đã có ở mục "${dup.label}" (${dup.isVisible ? "đang dùng" : "chưa dùng"}). Sửa mục đó thay vì tạo mới.`,
+      },
+      { status: 409 },
+    )
+  }
+
   const item = await prisma.menuItem.create({
     data: {
       label: label.trim(),
       label_en: typeof label_en === "string" && label_en.trim() ? label_en.trim() : null,
       label_zh: typeof label_zh === "string" && label_zh.trim() ? label_zh.trim() : null,
-      href: href.trim(),
+      href: trimmedHref,
       menuKey: typeof menuKey === "string" && menuKey.trim() ? menuKey.trim() : null,
       parentId: typeof parentId === "string" && parentId ? parentId : null,
       sortOrder: Number(sortOrder) || 0,
