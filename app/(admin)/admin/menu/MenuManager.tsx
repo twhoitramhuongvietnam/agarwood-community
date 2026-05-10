@@ -302,59 +302,69 @@ function Row({
   onAddChild?: () => void
 }) {
   return (
-    <div className={"flex items-center gap-2 px-3 py-2 " + (isChild ? "" : "bg-brand-50 rounded-t-lg")}>
-      <span className="text-xs text-brand-400 w-6 text-right">#{it.sortOrder}</span>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className={"font-medium truncate " + (it.isVisible ? "text-brand-900" : "text-brand-400")}>
-            {it.label}
-          </span>
-          {it.isNew && <Tag color="red">MỚI</Tag>}
-          {it.comingSoon && <Tag color="gray">Sắp có</Tag>}
-          {it.openInNewTab && <Tag color="blue">↗</Tag>}
-        </div>
-        <div className="text-xs text-brand-500 truncate">
-          {it.href}
-          {it.menuKey && <span className="ml-2 text-[10px] font-mono px-1 bg-brand-100 rounded">key:{it.menuKey}</span>}
+    // Mobile: stack — info trên, action button group dưới (4 nút full-row).
+    // Trước đó row `flex items-center` ép label container `flex-1 min-w-0` về
+    // 0px khi 4 button chiếm hết viewport hẹp → label biến mất hoàn toàn.
+    // sm+: layout 1 hàng như cũ.
+    <div className={"flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:gap-2 " + (isChild ? "" : "bg-brand-50 rounded-t-lg")}>
+      <div className="flex items-start gap-2 min-w-0 flex-1 sm:items-center">
+        <span className="text-xs text-brand-400 w-6 text-right shrink-0 mt-0.5 sm:mt-0">#{it.sortOrder}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={"font-medium " + (it.isVisible ? "text-brand-900" : "text-brand-400")}>
+              {it.label}
+            </span>
+            {it.isNew && <Tag color="red">MỚI</Tag>}
+            {it.comingSoon && <Tag color="gray">Sắp có</Tag>}
+            {it.openInNewTab && <Tag color="blue">↗</Tag>}
+          </div>
+          <div className="text-xs text-brand-500 truncate">
+            {it.href}
+            {it.menuKey && <span className="ml-2 text-[10px] font-mono px-1 bg-brand-100 rounded">key:{it.menuKey}</span>}
+          </div>
         </div>
       </div>
-      <button
-        onClick={onToggle}
-        disabled={readOnly}
-        title={readOnly ? READ_ONLY_TOOLTIP : it.isVisible ? "Bấm để ẩn khỏi menu" : "Bấm để hiển thị trên menu"}
-        className={
-          "text-xs px-3 py-1 rounded-full font-medium border transition-colors disabled:opacity-50 " +
-          (it.isVisible
-            ? "bg-green-50 text-green-700 border-green-300 hover:bg-green-100"
-            : "bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200")
-        }
-      >
-        {it.isVisible ? "✓ Đang dùng" : "○ Chưa dùng"}
-      </button>
-      {onAddChild && (
+      {/* Mobile: nút thụt 32px (#sortOrder 24 + gap 8) để align với cột label,
+          không sát mép trái. flex-wrap dự phòng nếu vẫn không đủ chỗ. */}
+      <div className="flex flex-wrap items-center gap-2 ml-8 sm:ml-0 sm:flex-nowrap sm:shrink-0">
         <button
-          onClick={onAddChild}
+          onClick={onToggle}
           disabled={readOnly}
-          title={readOnly ? READ_ONLY_TOOLTIP : "Thêm submenu"}
-          className="text-xs px-2 py-1 rounded border border-brand-300 text-brand-600 hover:bg-brand-100 disabled:opacity-50"
+          title={readOnly ? READ_ONLY_TOOLTIP : it.isVisible ? "Bấm để ẩn khỏi menu" : "Bấm để hiển thị trên menu"}
+          className={
+            "text-xs px-3 py-1 rounded-full font-medium border transition-colors disabled:opacity-50 whitespace-nowrap " +
+            (it.isVisible
+              ? "bg-green-50 text-green-700 border-green-300 hover:bg-green-100"
+              : "bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200")
+          }
         >
-          + Sub
+          {it.isVisible ? "✓ Đang dùng" : "○ Chưa dùng"}
         </button>
-      )}
-      <button
-        onClick={onEdit}
-        className="text-xs px-2 py-1 rounded border border-brand-300 text-brand-700 hover:bg-brand-100"
-      >
-        Sửa
-      </button>
-      <button
-        onClick={onDelete}
-        disabled={readOnly}
-        title={readOnly ? READ_ONLY_TOOLTIP : undefined}
-        className="text-xs px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50"
-      >
-        Xoá
-      </button>
+        {onAddChild && (
+          <button
+            onClick={onAddChild}
+            disabled={readOnly}
+            title={readOnly ? READ_ONLY_TOOLTIP : "Thêm submenu"}
+            className="text-xs px-2 py-1 rounded border border-brand-300 text-brand-600 hover:bg-brand-100 disabled:opacity-50 whitespace-nowrap"
+          >
+            + Sub
+          </button>
+        )}
+        <button
+          onClick={onEdit}
+          className="text-xs px-2 py-1 rounded border border-brand-300 text-brand-700 hover:bg-brand-100"
+        >
+          Sửa
+        </button>
+        <button
+          onClick={onDelete}
+          disabled={readOnly}
+          title={readOnly ? READ_ONLY_TOOLTIP : undefined}
+          className="text-xs px-2 py-1 rounded border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50"
+        >
+          Xoá
+        </button>
+      </div>
     </div>
   )
 }
