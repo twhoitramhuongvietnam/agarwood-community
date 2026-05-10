@@ -14,11 +14,16 @@ function getMembershipStatus(user: {
   isActive: boolean
   membershipExpires: Date | null
 }): { label: string; cls: string; sort: number } {
-  if (!user.isActive) {
-    return { label: "Vô hiệu hoá", cls: "bg-gray-100 text-gray-600", sort: 4 }
-  }
+  // Thứ tự ưu tiên: state nào mô tả membership chính xác nhất.
+  // `expires=null` → membership chưa từng được kích hoạt → "Chờ kích hoạt"
+  // bất kể account on/off (admin chỉ cần activate là xong cả 2). Đặt check
+  // này TRƯỚC `!isActive` để tab "Chờ kích hoạt" và cell trạng thái khớp
+  // nhau (xem note ở filter `pending` bên dưới).
   if (!user.membershipExpires) {
     return { label: "Chờ kích hoạt", cls: "bg-blue-100 text-blue-700", sort: 3 }
+  }
+  if (!user.isActive) {
+    return { label: "Vô hiệu hoá", cls: "bg-gray-100 text-gray-600", sort: 4 }
   }
   const daysLeft = Math.ceil((new Date(user.membershipExpires).getTime() - Date.now()) / (86400000))
   if (daysLeft <= 0) {
@@ -69,9 +74,14 @@ export default async function AdminMembersPage({
   } else if (status === "expiring") {
     where = { role: VIP_LIKE, isActive: true, membershipExpires: { gt: now, lte: thirtyDaysLater } }
   } else if (status === "expired") {
-    where = { role: VIP_LIKE, isActive: true, OR: [{ membershipExpires: { lte: now } }, { membershipExpires: null }] }
+    // Chỉ user đã từng có hạn membership và đã lapse — KHÔNG bao gồm
+    // expires=null (those đang "Chờ kích hoạt", không phải "Hết hạn").
+    where = { role: VIP_LIKE, isActive: true, membershipExpires: { lte: now } }
   } else if (status === "pending") {
-    where = { role: VIP_LIKE, isActive: false, membershipExpires: null }
+    // Mọi user chưa từng kích hoạt membership (expires=null), bất kể account
+    // on/off. Khớp đúng cell label "Chờ kích hoạt" do getMembershipStatus
+    // trả về (check !expires trước !isActive).
+    where = { role: VIP_LIKE, membershipExpires: null }
   } else if (status === "registration") {
     where = { role: "GUEST", isActive: false }
   } else if (status === "disabled") {
@@ -121,8 +131,8 @@ export default async function AdminMembersPage({
     prisma.user.count({ where: { role: VIP_LIKE } }),
     prisma.user.count({ where: { role: VIP_LIKE, isActive: true, membershipExpires: { gt: thirtyDaysLater } } }),
     prisma.user.count({ where: { role: VIP_LIKE, isActive: true, membershipExpires: { gt: now, lte: thirtyDaysLater } } }),
-    prisma.user.count({ where: { role: VIP_LIKE, isActive: true, OR: [{ membershipExpires: { lte: now } }, { membershipExpires: null }] } }),
-    prisma.user.count({ where: { role: VIP_LIKE, isActive: false, membershipExpires: null } }),
+    prisma.user.count({ where: { role: VIP_LIKE, isActive: true, membershipExpires: { lte: now } } }),
+    prisma.user.count({ where: { role: VIP_LIKE, membershipExpires: null } }),
     prisma.user.count({ where: { role: VIP_LIKE, isActive: false, membershipExpires: { not: null } } }),
     prisma.user.count({ where: { role: "GUEST", isActive: false } }),
     prisma.siteConfig.findUnique({ where: { key: "max_vip_accounts" } }),
