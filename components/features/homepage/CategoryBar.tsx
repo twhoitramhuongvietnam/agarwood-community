@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { locales } from "@/i18n/config"
@@ -76,6 +76,7 @@ type Props = {
 export function CategoryBar({ loggedIn = false, items }: Props) {
   const pathname = stripLocale(usePathname() || "/")
   const t = useTranslations("navbar")
+  const locale = useLocale()
 
   // Submenu open state — render dropdown qua portal vào document.body để
   // escape overflow clipping của <ul> parent (overflow-x-auto + overflow-y-
@@ -288,7 +289,7 @@ export function CategoryBar({ loggedIn = false, items }: Props) {
           {!loggedIn && (
             <li className="lg:ml-auto">
               <Link
-                href="/login"
+                href={`/${locale}/login`}
                 className="inline-flex items-center px-3.5 py-2.5 text-[13px] font-semibold uppercase tracking-wide text-white/95 border border-white/40 ml-2 transition-colors hover:bg-white/10"
               >
                 {t("login")}

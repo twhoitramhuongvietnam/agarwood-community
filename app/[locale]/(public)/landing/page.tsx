@@ -184,7 +184,7 @@ export default async function LandingPage() {
 
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
-              href="/dang-ky"
+              href={`/${locale}/dang-ky`}
               className="inline-flex items-center justify-center rounded-lg bg-brand-700 px-8 py-5 text-base font-bold text-white shadow-sm transition-all hover:bg-brand-800 hover:shadow-md hover:-translate-y-0.5"
             >
               {t("heroCta")}
@@ -419,7 +419,7 @@ export default async function LandingPage() {
           <p className="mt-4 text-brand-200 text-lg">{t("finalCtaDesc")}</p>
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link
-              href="/dang-ky"
+              href={`/${locale}/dang-ky`}
               className="inline-flex items-center justify-center rounded-lg bg-brand-400 px-8 py-4 text-base font-bold text-brand-900 shadow-lg transition-all hover:bg-brand-300 hover:shadow-xl hover:-translate-y-0.5"
             >
               {t("finalCtaButton")}

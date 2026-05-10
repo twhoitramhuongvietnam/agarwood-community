@@ -1,7 +1,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { auth } from "@/lib/auth"
-import { getTranslations } from "next-intl/server"
+import { getLocale, getTranslations } from "next-intl/server"
 
 /**
  * Hero CTA banner gợi ý đăng ký hội viên — render trước footer trên trang chủ
@@ -13,9 +13,10 @@ import { getTranslations } from "next-intl/server"
  * "premium membership" thay vì banner quảng cáo thông thường).
  */
 export async function HomepageJoinBanner() {
-  const [session, t] = await Promise.all([
+  const [session, t, locale] = await Promise.all([
     auth(),
     getTranslations("registerNudge"),
+    getLocale(),
   ])
 
   if (session?.user) return null
@@ -81,7 +82,7 @@ export async function HomepageJoinBanner() {
         {/* CTA */}
         <div className="mt-10 flex flex-col items-center gap-3">
           <Link
-            href="/dang-ky"
+            href={`/${locale}/dang-ky`}
             className="group inline-flex items-center gap-2 rounded-xl bg-linear-to-br from-amber-400 to-amber-600 px-8 py-3.5 text-base sm:text-lg font-bold text-brand-950 shadow-xl shadow-amber-900/30 hover:shadow-2xl hover:shadow-amber-500/40 hover:scale-[1.03] transition-all duration-200"
           >
             {t("heroCta")}
@@ -90,7 +91,7 @@ export async function HomepageJoinBanner() {
             </span>
           </Link>
           <Link
-            href="/login"
+            href={`/${locale}/login`}
             className="text-xs sm:text-sm text-amber-200/80 hover:text-amber-100 underline underline-offset-4"
           >
             {t("heroLogin")}

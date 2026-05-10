@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { UserPlus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -20,7 +20,9 @@ import { cn } from "@/lib/utils"
  */
 export function JoinFloatingBadgeClient() {
   const t = useTranslations("registerNudge")
+  const locale = useLocale()
   const pathname = usePathname()
+  const registerHref = `/${locale}/dang-ky`
 
   const [dismissed, setDismissed] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -56,7 +58,7 @@ export function JoinFloatingBadgeClient() {
         <div className="flex items-center gap-1 rounded-full bg-linear-to-br from-amber-500 to-amber-700 py-1 pl-3 pr-1 shadow-lg ring-1 ring-amber-900/20">
           <UserPlus className="h-4 w-4 text-white shrink-0" aria-hidden />
           <Link
-            href="/dang-ky"
+            href={registerHref}
             className="px-1 text-sm font-semibold text-white whitespace-nowrap hover:underline"
           >
             {t("badgeText")} →
@@ -96,7 +98,7 @@ export function JoinFloatingBadgeClient() {
         ) : (
           <div className="flex items-center gap-1 rounded-full bg-linear-to-br from-amber-500 to-amber-700 py-1 pl-3 pr-1 shadow-lg ring-1 ring-amber-900/20">
             <Link
-              href="/dang-ky"
+              href={registerHref}
               className="px-1 text-sm font-semibold text-white whitespace-nowrap"
             >
               {t("badgeText")} →

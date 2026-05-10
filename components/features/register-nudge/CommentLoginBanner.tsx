@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 
 /**
  * Banner gợi ý đăng ký hội viên — render thay text "Đăng nhập để bình luận"
@@ -13,6 +13,7 @@ import { useTranslations } from "next-intl"
  */
 export function CommentLoginBanner() {
   const t = useTranslations("registerNudge")
+  const locale = useLocale()
 
   return (
     <div className="my-3 overflow-hidden rounded-xl border border-amber-300/60 bg-white shadow-md ring-1 ring-amber-900/5">
@@ -44,7 +45,7 @@ export function CommentLoginBanner() {
 
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
             <Link
-              href="/dang-ky"
+              href={`/${locale}/dang-ky`}
               className="group inline-flex items-center gap-1.5 rounded-lg bg-linear-to-br from-amber-600 to-amber-700 px-4 py-2 text-sm font-semibold text-white shadow-md hover:shadow-lg hover:from-amber-500 hover:to-amber-700 transition-all duration-200"
             >
               {t("commentRegisterCta")}
@@ -53,7 +54,7 @@ export function CommentLoginBanner() {
               </span>
             </Link>
             <Link
-              href="/login"
+              href={`/${locale}/login`}
               className="text-xs sm:text-sm text-brand-700 hover:text-brand-900 underline underline-offset-2 font-medium"
             >
               {t("commentLoginCta")}

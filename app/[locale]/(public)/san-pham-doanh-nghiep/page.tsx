@@ -465,7 +465,7 @@ export default async function MarketplacePage({
           <>
             <p className="text-brand-200 mb-4 text-sm">{t("ctaGuest")}</p>
             <Link
-              href="/login"
+              href={`/${locale}/login`}
               className="inline-flex items-center justify-center rounded-lg bg-brand-400 text-brand-900 font-semibold px-6 py-3 hover:bg-brand-300 transition-colors"
             >
               {t("ctaLogin")}

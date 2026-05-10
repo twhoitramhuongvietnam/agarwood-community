@@ -65,14 +65,14 @@ export function NavMobile({
             <>
               <Separator className="my-3 bg-brand-700" />
               <Link
-                href="/login"
+                href={`/${currentLocale}/login`}
                 onClick={() => setOpen(false)}
                 className="px-4 py-3 rounded-md text-brand-200 hover:bg-brand-700 transition-colors text-base"
               >
                 Đăng nhập
               </Link>
               <Link
-                href="/dang-ky"
+                href={`/${currentLocale}/dang-ky`}
                 onClick={() => setOpen(false)}
                 className="mt-1 px-4 py-3 rounded-md bg-secondary text-secondary-foreground hover:bg-brand-300 transition-colors text-base font-semibold text-center"
               >

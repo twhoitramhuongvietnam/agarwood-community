@@ -357,7 +357,7 @@ export default async function GioiThieuV2Page() {
           <div className="eyebrow">{t("ctaEyebrow")}</div>
           <h2 dangerouslySetInnerHTML={{ __html: t("ctaTitle") }} />
           <p>{t("ctaDesc")}</p>
-          <Link href="/dang-ky" className="btn">
+          <Link href={`/${locale}/dang-ky`} className="btn">
             {t("ctaButton")}
           </Link>
         </div>

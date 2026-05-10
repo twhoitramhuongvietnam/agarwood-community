@@ -432,6 +432,7 @@ function PostCard({
   now: number
 }) {
   const t = useTranslations("feed")
+  const locale = useLocale()
   const [expanded, setExpanded] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
@@ -811,7 +812,7 @@ function PostCard({
           </div>
           <div className="absolute inset-0 flex items-center justify-center">
             <Link
-              href="/login"
+              href={`/${locale}/login`}
               className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white shadow transition-colors hover:bg-brand-800"
             >
               Đăng nhập để đọc
@@ -1111,6 +1112,7 @@ export function FeedClient({
   tierIndGold,
 }: FeedClientProps) {
   const t = useTranslations("feed")
+  const locale = useLocale()
 
   // MINE chỉ hiện khi đã login — guest không có "bài của tôi".
   // PINNED chỉ hiện cho ADMIN — để xem + bỏ ghim các bài đang isPromoted.
@@ -1551,7 +1553,7 @@ export function FeedClient({
                 : t("guestMsg")}
             </p>
             {!isLoggedIn && (
-              <Link href="/login" className="flex w-full items-center justify-center rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800 transition-colors">
+              <Link href={`/${locale}/login`} className="flex w-full items-center justify-center rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800 transition-colors">
                 {t("loginBtn")}
               </Link>
             )}
