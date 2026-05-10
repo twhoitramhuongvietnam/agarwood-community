@@ -53,7 +53,7 @@ export function QuotaActions() {
         className="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-50"
       >
         <RefreshCcw className={cn("w-4 h-4", pending && "animate-spin")} />
-        {pending ? "Đang fetch..." : "Làm mới snapshot"}
+        {pending ? "Đang fetch..." : "Làm mới"}
       </button>
     </div>
   )
