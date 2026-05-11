@@ -84,6 +84,7 @@ export default async function SoQuyPage({
         description: true,
         referenceNo: true,
         receiptUrl: true,
+        attachments: true,
         paymentMethod: true,
         relatedPaymentId: true,
         category: { select: { name: true } },
@@ -320,11 +321,17 @@ export default async function SoQuyPage({
                       {tx.description}
                     </Link>
                     <div className="flex gap-2 mt-0.5">
-                      {tx.receiptUrl && (
-                        <span className="inline-flex items-center gap-0.5 text-xs text-brand-500">
-                          <Receipt className="h-3 w-3" /> Có CT
-                        </span>
-                      )}
+                      {(() => {
+                        const count = Array.isArray(tx.attachments) ? tx.attachments.length : 0
+                        const hasLegacy = !!tx.receiptUrl
+                        if (count === 0 && !hasLegacy) return null
+                        return (
+                          <span className="inline-flex items-center gap-0.5 text-xs text-brand-500">
+                            <Receipt className="h-3 w-3" />
+                            {count > 0 ? `${count} CT` : "Có CT"}
+                          </span>
+                        )
+                      })()}
                       {tx.relatedPaymentId && (
                         <span className="text-xs text-amber-700">⚡ Tự động từ CK</span>
                       )}

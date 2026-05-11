@@ -3,7 +3,13 @@
 import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ReceiptUpload } from "./ReceiptUpload"
+import {
+  ReceiptUpload,
+  uploadPendingAttachments,
+  existingItemsFrom,
+  type AttachmentItem,
+  type Attachment,
+} from "./ReceiptUpload"
 import {
   createTransaction,
   updateTransaction,
@@ -33,7 +39,10 @@ export type TransactionInitial = {
   paymentMethod: PaymentMethod
   referenceNo: string | null
   description: string
+  /** Legacy Cloudinary URL — display-only badge, không edit được. */
   receiptUrl: string | null
+  /** Chứng từ Drive đính kèm (0..N item). */
+  attachments: Attachment[]
   isSystem: boolean
   hasRelatedPayment: boolean
 }
@@ -63,7 +72,9 @@ export function TransactionForm({
   )
   const [referenceNo, setReferenceNo] = useState(initial?.referenceNo ?? "")
   const [description, setDescription] = useState(initial?.description ?? "")
-  const [receiptUrl, setReceiptUrl] = useState<string | null>(initial?.receiptUrl ?? null)
+  const [attachments, setAttachments] = useState<AttachmentItem[]>(() =>
+    initial ? existingItemsFrom(initial.attachments) : [],
+  )
 
   const isEdit = !!initial
   const isSystem = initial?.isSystem ?? false
@@ -96,17 +107,25 @@ export function TransactionForm({
   function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    const payload = {
-      type,
-      categoryId,
-      amount,
-      transactionDate,
-      paymentMethod,
-      referenceNo,
-      description,
-      receiptUrl: receiptUrl ?? "",
-    }
     startTransition(async () => {
+      // Upload Drive chỉ khi user submit. Năm gán theo transactionDate để
+      // file vào đúng folder năm của giao dịch.
+      const year = Number(transactionDate.slice(0, 4)) || new Date().getFullYear()
+      const uploadResult = await uploadPendingAttachments(attachments, year)
+      if (!uploadResult.ok) {
+        setError(uploadResult.error)
+        return
+      }
+      const payload = {
+        type,
+        categoryId,
+        amount,
+        transactionDate,
+        paymentMethod,
+        referenceNo,
+        description,
+        attachments: uploadResult.data,
+      }
       const res = isEdit
         ? await updateTransaction(initial!.id, payload)
         : await createTransaction(payload)
@@ -257,8 +276,26 @@ export function TransactionForm({
       </div>
 
       <div>
-        <span className="text-sm font-medium text-brand-800 block mb-2">Chứng từ</span>
-        <ReceiptUpload value={receiptUrl} onChange={setReceiptUrl} />
+        <span className="text-sm font-medium text-brand-800 block mb-2">
+          Chứng từ {attachments.length > 0 && (
+            <span className="text-xs text-brand-500 font-normal">({attachments.length} file)</span>
+          )}
+        </span>
+        <ReceiptUpload items={attachments} onChange={setAttachments} />
+        {initial?.receiptUrl && (
+          <p className="mt-2 text-xs text-amber-700">
+            ⚠ Giao dịch này có chứng từ cũ (Cloudinary):{" "}
+            <a
+              href={initial.receiptUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="underline hover:text-amber-900"
+            >
+              Xem
+            </a>
+            . Dữ liệu Cloudinary chỉ đọc — admin có thể bổ sung file mới qua nút trên.
+          </p>
+        )}
       </div>
 
       {error && (

@@ -11,6 +11,7 @@ import {
   parseAmountInput,
   parseDateInput,
 } from "@/lib/ledger"
+import { deleteFromDrive } from "@/lib/google-drive"
 
 /**
  * Server actions cho /admin/thu-chi.
@@ -79,6 +80,13 @@ export async function setOpeningBalance(input: unknown) {
   return { success: true as const }
 }
 
+const attachmentSchema = z.object({
+  driveFileId: z.string().min(1),
+  driveViewUrl: z.string().url(),
+  fileName: z.string().min(1).max(255),
+  mimeType: z.string().min(1).max(127),
+})
+
 const transactionSchema = z.object({
   type: z.enum(["INCOME", "EXPENSE"]),
   categoryId: z.string().min(1, "Chọn danh mục"),
@@ -87,8 +95,23 @@ const transactionSchema = z.object({
   paymentMethod: z.enum(["CASH", "BANK"]),
   referenceNo: z.string().max(100).optional().or(z.literal("")),
   description: z.string().min(1, "Nhập diễn giải").max(2000),
-  receiptUrl: z.string().url().optional().or(z.literal("")),
+  // Chứng từ Drive (0..N). Empty array → không có chứng từ Drive (vẫn có thể
+  // còn `receiptUrl` legacy Cloudinary read-only nếu có).
+  attachments: z.array(attachmentSchema).max(20, "Tối đa 20 chứng từ / giao dịch"),
 })
+
+type AttachmentInput = z.infer<typeof attachmentSchema>
+
+/** Parse JSON column attachments thành array typed. Returns [] if invalid. */
+function parseAttachments(raw: unknown): AttachmentInput[] {
+  if (!Array.isArray(raw)) return []
+  const out: AttachmentInput[] = []
+  for (const it of raw) {
+    const parsed = attachmentSchema.safeParse(it)
+    if (parsed.success) out.push(parsed.data)
+  }
+  return out
+}
 
 export async function createTransaction(input: unknown) {
   const { error, userId } = await requireWriter()
@@ -127,7 +150,7 @@ export async function createTransaction(input: unknown) {
       paymentMethod: parsed.data.paymentMethod,
       referenceNo: parsed.data.referenceNo?.trim() || null,
       description: parsed.data.description.trim(),
-      receiptUrl: parsed.data.receiptUrl?.trim() || null,
+      attachments: parsed.data.attachments,
       recordedById: userId!,
     },
     select: { id: true },
@@ -155,7 +178,7 @@ export async function updateTransaction(id: string, input: unknown) {
 
   const tx = await prisma.ledgerTransaction.findUnique({
     where: { id },
-    select: { id: true, isSystem: true, categoryId: true },
+    select: { id: true, isSystem: true, categoryId: true, attachments: true },
   })
   if (!tx) return { error: "Giao dịch không tồn tại" }
 
@@ -167,12 +190,24 @@ export async function updateTransaction(id: string, input: unknown) {
   if (cat.type !== parsed.data.type) return { error: "Danh mục không khớp loại thu/chi" }
 
   // Bảo vệ system transaction: không cho đổi category sang/khỏi opening balance.
-  // Cho edit amount/date/description thoải mái (user yêu cầu sửa thoải mái).
   if (tx.isSystem && parsed.data.categoryId !== tx.categoryId) {
     return { error: "Không thể đổi danh mục của giao dịch hệ thống" }
   }
   if (!tx.isSystem && cat.id === OPENING_BALANCE_CATEGORY_ID) {
     return { error: "Không thể chuyển sang danh mục Số dư đầu kỳ" }
+  }
+
+  // Diff attachments cũ vs mới — file nào bị remove khỏi list → xóa Drive
+  // để không orphan. Best-effort: failure log warn, không block update.
+  const oldAttachments = parseAttachments(tx.attachments)
+  const newFileIds = new Set(parsed.data.attachments.map((a) => a.driveFileId))
+  const removed = oldAttachments.filter((a) => !newFileIds.has(a.driveFileId))
+  for (const a of removed) {
+    try {
+      await deleteFromDrive(a.driveFileId)
+    } catch (err) {
+      console.warn(`Không xóa được Drive file ${a.driveFileId}:`, err)
+    }
   }
 
   await prisma.ledgerTransaction.update({
@@ -185,7 +220,7 @@ export async function updateTransaction(id: string, input: unknown) {
       paymentMethod: parsed.data.paymentMethod,
       referenceNo: parsed.data.referenceNo?.trim() || null,
       description: parsed.data.description.trim(),
-      receiptUrl: parsed.data.receiptUrl?.trim() || null,
+      attachments: parsed.data.attachments,
     },
   })
 
@@ -202,12 +237,22 @@ export async function deleteTransaction(id: string) {
 
   const tx = await prisma.ledgerTransaction.findUnique({
     where: { id },
-    select: { isSystem: true, relatedPaymentId: true },
+    select: { isSystem: true, relatedPaymentId: true, attachments: true },
   })
   if (!tx) return { error: "Giao dịch không tồn tại" }
   if (tx.isSystem) return { error: "Không thể xóa giao dịch hệ thống" }
   if (tx.relatedPaymentId) {
     return { error: "Giao dịch này được sinh tự động từ xác nhận chuyển khoản — không thể xóa độc lập" }
+  }
+
+  // Cascade xóa tất cả Drive file của attachments (best-effort).
+  const attachments = parseAttachments(tx.attachments)
+  for (const a of attachments) {
+    try {
+      await deleteFromDrive(a.driveFileId)
+    } catch (err) {
+      console.warn(`Không xóa được Drive file ${a.driveFileId}:`, err)
+    }
   }
 
   await prisma.ledgerTransaction.delete({ where: { id } })

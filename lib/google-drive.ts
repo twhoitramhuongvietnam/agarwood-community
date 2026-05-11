@@ -52,6 +52,8 @@ const CATEGORY_FOLDERS: Record<string, string> = {
   DIEU_LE: "VBPQ - Điều lệ",
   QUY_CHE: "VBPQ - Quy chế",
   GIAY_PHEP: "VBPQ - Giấy phép",
+  // Chứng từ Sổ quỹ Thu Chi (ảnh + PDF + Excel)
+  RECEIPT_THUCHI: "Chứng từ Thu Chi",
 }
 
 /**
@@ -105,6 +107,10 @@ const ALLOWED_MIME_TYPES = [
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  // Excel — chứng từ kế toán hay là Excel/CSV.
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/csv",
   // Hình ảnh — chấp nhận để lưu trữ ảnh scan, ảnh chữ ký, sơ đồ,... bên
   // cạnh văn bản. WebP ưu tiên về size nhưng JPG/PNG vẫn được cho tương thích.
   "image/jpeg",
@@ -193,6 +199,15 @@ export function getPreviewUrl(driveFileId: string): string {
  */
 export function getDownloadUrl(driveFileId: string): string {
   return `https://drive.google.com/uc?export=download&id=${driveFileId}`
+}
+
+/**
+ * Permanent thumbnail URL — Drive auto-generates thumbnails (~256px max) cho
+ * image/PDF. File phải ở chế độ "Anyone with link" (uploadToDrive đã set).
+ * `sz=wXXX` cho phép yêu cầu kích thước khác mặc định, max ~1000.
+ */
+export function getDriveThumbnailUrl(driveFileId: string, sizePx: number = 400): string {
+  return `https://drive.google.com/thumbnail?id=${driveFileId}&sz=w${sizePx}`
 }
 
 // ── Delete ───────────────────────────────────────────────────────────────────

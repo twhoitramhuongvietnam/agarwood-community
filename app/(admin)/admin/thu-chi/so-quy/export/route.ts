@@ -61,6 +61,7 @@ export async function GET(req: Request) {
       paymentMethod: true,
       amount: true,
       receiptUrl: true,
+      attachments: true,
       recordedBy: { select: { name: true } },
       createdAt: true,
     },
@@ -145,7 +146,12 @@ export async function GET(req: Request) {
       method: r.paymentMethod === "BANK" ? "Chuyển khoản" : "Tiền mặt",
       amount: Number(signed),
       balance: Number(balance),
-      receipt: r.receiptUrl ? "Có" : "-",
+      receipt:
+        Array.isArray(r.attachments) && r.attachments.length > 0
+          ? `Có (${r.attachments.length})`
+          : r.receiptUrl
+            ? "Có (cũ)"
+            : "-",
       by: r.recordedBy.name,
     })
 

@@ -1661,7 +1661,13 @@ model LedgerTransaction {
   paymentMethod   LedgerPaymentMethod @default(BANK)
   referenceNo     String? // số phiếu thu/chi, mã GD ngân hàng
   description     String              @db.Text
-  receiptUrl      String? // ảnh chứng từ — Cloudinary thu-chi/{MM-YYYY}/
+  /// Legacy Cloudinary URL (display-only). Data mới đẩy vào `attachments`.
+  receiptUrl      String?
+  /// Mảng chứng từ Drive (2026-05+). Mỗi item:
+  ///   { driveFileId: string, driveViewUrl: string, fileName: string, mimeType: string }
+  /// 1 giao dịch có thể đính kèm nhiều file (UNC, hóa đơn, biên bản,...).
+  /// Cleanup Drive file orphan: server diff cũ vs mới khi update/delete.
+  attachments     Json                @default("[]")
 
   // Liên kết tới Payment khi auto-tạo từ flow xác nhận CK; null khi nhập tay.
   // 1 Payment chỉ sinh 1 LedgerTransaction (avoid double counting).
