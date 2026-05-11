@@ -212,7 +212,7 @@ function FacebookIcon() {
 
 function ZaloIcon() {
   return (
-    <span aria-hidden="true" className="text-[11px] font-black tracking-tighter">
+    <span aria-hidden="true" className="text-[11px] font-bold tracking-tighter">
       Zalo
     </span>
   )

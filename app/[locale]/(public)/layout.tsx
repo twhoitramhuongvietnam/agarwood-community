@@ -11,9 +11,13 @@ function SiteFooterSkeleton() {
 
 // Inter: primary font cho phong cách thuần báo chí (Option VTV-style).
 // Scoped trong public layout — member/admin layouts giữ Be Vietnam Pro.
+// Weights: 400 (body), 500 (font-medium ~120 chỗ trong public), 600
+// (font-semibold), 700 (font-bold + serif-headline). Bỏ 900 (font-black) —
+// trước chỉ dùng ở ZaloIcon, đã chuyển sang font-bold. Mỗi weight subset
+// vietnamese ~60KB → cắt 1 weight ~20% font payload mobile.
 const inter = Inter({
   subsets: ["vietnamese", "latin"],
-  weight: ["400", "500", "600", "700", "900"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-inter",
   display: "swap",
 })

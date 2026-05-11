@@ -1,5 +1,4 @@
 import { Suspense } from "react"
-import { unstable_cache } from "next/cache"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getTierThresholds } from "@/lib/tier"
@@ -10,29 +9,7 @@ import { getBannerQuotaUsage } from "@/lib/bannerQuota"
 import { getCachedFeedFirstPage, getViewerReactions, mergeReactions } from "@/lib/feed-cache"
 import { FeedClient } from "./FeedClient"
 import { SidebarBanners, SidebarBannersSkeleton } from "./SidebarBanners"
-
-/** Top contributors list — đồng nhất cho mọi viewer, cache 10 phút.
- *  Phase 3.7 round 4 (2026-04): mở rộng role filter sang INFINITE — trước
- *  đây strict "VIP" → hội viên cấp cao nhất bị ẩn khỏi sidebar feed dù
- *  contribution thường lớn nhất. */
-const getTopContributors = unstable_cache(
-  () =>
-    prisma.user.findMany({
-      where: { role: { in: ["VIP", "INFINITE"] }, isActive: true },
-      orderBy: { contributionTotal: "desc" },
-      take: 5,
-      select: {
-        id: true,
-        name: true,
-        avatarUrl: true,
-        contributionTotal: true,
-        accountType: true,
-        company: { select: { name: true } },
-      },
-    }),
-  ["feed_top_contributors"],
-  { revalidate: 600, tags: ["feed", "users"] },
-)
+import { TopContributorsCard, TopContributorsCardSkeleton } from "./TopContributorsCard"
 
 export const revalidate = 60 // 1 min — feed updates are not real-time critical
 
@@ -213,13 +190,14 @@ export default async function FeedPage({
     }
   })
 
-  // Sidebar data — gộp toàn bộ vào 1 Promise.all để tránh waterfall.
-  // Tier thresholds trước đây await sequential sau block này (~+100-200ms TTFB)
-  // → giờ song song. Quota functions (post/product/banner) đã cache 60s qua
-  // unstable_cache (xem lib/quota.ts), invalidate khi user post/upload mới.
+  // Sidebar data — gộp các query CHẶN render chính vào 1 Promise.all.
+  // Tier thresholds + membership + quota chặn vì:
+  //  - tierSilver/Gold dùng để render badge cho từng PostCard (LCP element).
+  //  - membershipInfo + quotaInfo gate composer + sidebar membership card.
+  // Top contributors KHÔNG chặn — đã tách sang <TopContributorsCard> server
+  // component, stream vào sidebar qua Suspense slot (2026-05 perf pass).
   const [
     membershipInfo,
-    topContributors,
     postQuota,
     productQuota,
     bannerQuota,
@@ -232,7 +210,6 @@ export default async function FeedPage({
           select: { membershipExpires: true, contributionTotal: true, displayPriority: true, accountType: true, company: { select: { name: true, slug: true } } },
         })
       : null,
-    getTopContributors(),
     userId ? getQuotaUsage(userId) : null,
     userId ? getProductQuotaUsage(userId) : null,
     userId ? getBannerQuotaUsage(userId) : null,
@@ -283,8 +260,12 @@ export default async function FeedPage({
             }
           : null
       }
-      topContributors={topContributors}
       quotaInfo={quotaInfo}
+      topContributorsSlot={
+        <Suspense key="top-contributors" fallback={<TopContributorsCardSkeleton key="top-contributors-fallback" />}>
+          <TopContributorsCard key="top-contributors-content" />
+        </Suspense>
+      }
       sidebarBannersSlot={
         <Suspense key="sidebar-banners" fallback={<SidebarBannersSkeleton key="sidebar-banners-fallback" />}>
           <SidebarBanners key="sidebar-banners-content" />

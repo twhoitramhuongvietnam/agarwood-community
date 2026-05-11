@@ -157,15 +157,6 @@ function postUrl(post: Post): string {
   return `/bai-viet/${post.id}`
 }
 
-type TopContributor = {
-  id: string
-  name: string
-  avatarUrl: string | null
-  contributionTotal: number
-  accountType: string
-  company: { name: string } | null
-}
-
 export type MembershipInfo = {
   expires: string | null
   contributionTotal: number
@@ -202,8 +193,10 @@ type FeedClientProps = {
   tierGold?: number
   tierIndSilver?: number
   tierIndGold?: number
-  topContributors: TopContributor[]
   quotaInfo: QuotaInfo | null
+  /** Server-rendered + Suspense-streamed: top contributor card (sidebar).
+   *  Tách khỏi initial render để FeedClient không phải đợi query cold. */
+  topContributorsSlot: ReactNode
   sidebarBannersSlot: ReactNode
 }
 
@@ -267,12 +260,19 @@ function FeedThumb({
   onClick,
   overlay,
   sizes = "(max-width: 768px) 50vw, 400px",
+  width = 1000,
+  priority = false,
 }: {
   url: string
   index: number
   onClick: (i: number) => void
   overlay?: ReactNode
   sizes?: string
+  /** Cloudinary fetch width — khớp với rendered size (×~1.5 cho retina) tránh
+   *  tải ảnh 1000px cho tile 200px. */
+  width?: number
+  /** LCP candidate (ảnh đầu của post đầu tiên) → priority + fetchPriority high. */
+  priority?: boolean
 }) {
   return (
     <button
@@ -282,13 +282,15 @@ function FeedThumb({
       aria-label={`Xem ảnh ${index + 1}`}
     >
       <Image
-        src={cloudinaryResize(url, 1000)}
+        src={cloudinaryResize(url, width)}
         alt=""
         fill
         className="object-cover"
         sizes={sizes}
         placeholder="blur"
         blurDataURL={BLUR_DATA_URL}
+        priority={priority}
+        fetchPriority={priority ? "high" : "auto"}
       />
       {overlay}
     </button>
@@ -298,9 +300,13 @@ function FeedThumb({
 function PostImageGrid({
   images,
   onImageClick,
+  priorityFirst = false,
 }: {
   images: string[]
   onImageClick: (index: number) => void
+  /** Khi true, thumbnail đầu tiên được đánh priority — dành cho post #0
+   *  trong feed (LCP candidate trên mobile). */
+  priorityFirst?: boolean
 }) {
   const count = images.length
   if (count === 0) return null
@@ -313,6 +319,8 @@ function PostImageGrid({
           index={0}
           onClick={onImageClick}
           sizes="(max-width: 768px) 100vw, 600px"
+          width={1200}
+          priority={priorityFirst}
         />
       </div>
     )
@@ -321,8 +329,14 @@ function PostImageGrid({
   if (count === 2) {
     return (
       <div className="grid aspect-video w-full grid-cols-2 gap-1 overflow-hidden rounded-lg">
-        <FeedThumb url={images[0]} index={0} onClick={onImageClick} />
-        <FeedThumb url={images[1]} index={1} onClick={onImageClick} />
+        <FeedThumb
+          url={images[0]}
+          index={0}
+          onClick={onImageClick}
+          width={700}
+          priority={priorityFirst}
+        />
+        <FeedThumb url={images[1]} index={1} onClick={onImageClick} width={700} />
       </div>
     )
   }
@@ -336,10 +350,12 @@ function PostImageGrid({
             index={0}
             onClick={onImageClick}
             sizes="(max-width: 768px) 50vw, 400px"
+            width={700}
+            priority={priorityFirst}
           />
         </div>
-        <FeedThumb url={images[1]} index={1} onClick={onImageClick} />
-        <FeedThumb url={images[2]} index={2} onClick={onImageClick} />
+        <FeedThumb url={images[1]} index={1} onClick={onImageClick} width={500} />
+        <FeedThumb url={images[2]} index={2} onClick={onImageClick} width={500} />
       </div>
     )
   }
@@ -348,13 +364,20 @@ function PostImageGrid({
   const extra = count - 4
   return (
     <div className="grid aspect-square w-full grid-cols-2 grid-rows-2 gap-1 overflow-hidden rounded-lg">
-      <FeedThumb url={images[0]} index={0} onClick={onImageClick} />
-      <FeedThumb url={images[1]} index={1} onClick={onImageClick} />
-      <FeedThumb url={images[2]} index={2} onClick={onImageClick} />
+      <FeedThumb
+        url={images[0]}
+        index={0}
+        onClick={onImageClick}
+        width={500}
+        priority={priorityFirst}
+      />
+      <FeedThumb url={images[1]} index={1} onClick={onImageClick} width={500} />
+      <FeedThumb url={images[2]} index={2} onClick={onImageClick} width={500} />
       <FeedThumb
         url={images[3]}
         index={3}
         onClick={onImageClick}
+        width={500}
         overlay={
           extra > 0 ? (
             <div className="absolute inset-0 flex items-center justify-center bg-black/60">
@@ -879,6 +902,7 @@ function PostCard({
           <PostImageGrid
             images={displayImages}
             onImageClick={setLightboxIndex}
+            priorityFirst={index === 0}
           />
         </div>
       )}
@@ -1103,8 +1127,8 @@ export function FeedClient({
   currentUserName,
   currentUserAvatarUrl,
   membershipInfo,
-  topContributors,
   quotaInfo,
+  topContributorsSlot,
   sidebarBannersSlot,
   tierSilver,
   tierGold,
@@ -1565,34 +1589,10 @@ export function FeedClient({
           </>
         )}
 
-        {topContributors.length > 0 && (
-          <div className="bg-white rounded-xl border border-brand-200 p-5">
-            <h3 className="font-semibold text-brand-900 text-sm mb-4">{t("topContributors")}</h3>
-            <ul className="space-y-3">
-              {topContributors.map((c, i) => {
-                const t = getTierBadge(c.contributionTotal, c.accountType, tierSilver, tierGold, tierIndSilver, tierIndGold)
-                return (
-                  <li key={c.id} className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-brand-400 w-4 text-center">{i + 1}</span>
-                    <div className="relative w-8 h-8 rounded-full bg-brand-200 flex items-center justify-center shrink-0 overflow-hidden">
-                      {c.avatarUrl ? (
-                        <Image src={c.avatarUrl} alt="" fill className="object-cover" sizes="32px" />
-                      ) : (
-                        <span className="text-xs font-bold text-brand-700">{getInitials(c.name)}</span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-brand-900 truncate">
-                        {c.company ? c.company.name : c.name}
-                      </p>
-                    </div>
-                    <span className={cn("text-[10px] font-bold rounded-full px-1.5 py-0.5", t.cls)}>{t.label}</span>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        )}
+        {/* Top contributors — server-rendered + Suspense-streamed slot.
+            Initial paint không đợi getTopContributors query (cold cache có thể
+            ~50-100ms). Render fallback skeleton trước, fill in khi RSC ready. */}
+        {topContributorsSlot}
 
         {/* Sticky vertical ad rail — fetched separately as a streamed server
             component so the feed renders without waiting on the banner query. */}
