@@ -319,6 +319,16 @@
     "hasAccount": "Đã có tài khoản?",
     "loginLink": "Đăng nhập"
   },
+  "companyFields": {
+    "natural_agarwood": "Trầm tự nhiên",
+    "essential_oil": "Tinh dầu",
+    "incense": "Nhang trầm",
+    "handicraft": "Thủ công mỹ nghệ",
+    "export": "Xuất khẩu",
+    "processing": "Chế biến",
+    "cultivation": "Trồng & khai thác",
+    "other": "Khác"
+  },
   "registerSection": {
     "selectRole": "Bạn đăng ký với tư cách",
     "individualLabel": "Cá nhân / Chuyên gia",
@@ -473,6 +483,9 @@
     "joinFee": "Phí gia nhập (1 lần):",
     "annualFee": "Niên liễn hàng năm:",
     "approvalTitle": "Quy trình xét duyệt chính thức",
+    "approvalP1": "Theo Điều lệ Hội, đơn gia nhập sẽ được <strong>Ban Thường vụ Hội xét duyệt tại các cuộc họp hàng quý</strong>; Chủ tịch Hội quyết định công nhận Hội viên trong vòng 30 ngày kể từ ngày nộp hồ sơ đầy đủ.",
+    "approvalP2": "Trước khi được công nhận chính thức, bạn được cấp <em>Tài khoản cơ bản</em> để truy cập cộng đồng và chia sẻ bài viết ngay. Sau khi đăng nhập, bạn có thể <applicationLink>nộp đơn kết nạp chính thức</applicationLink> để Ban Thường vụ xét duyệt.",
+    "approvalP3": "Xem chi tiết quyền & nghĩa vụ Hội viên tại <charterLink>Điều lệ Hội (Điều 8–10)</charterLink>.",
     "submitForm": "Nộp đơn đăng ký"
   },
   "companies": {

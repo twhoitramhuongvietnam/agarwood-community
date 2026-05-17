@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { Resend } from "resend"
 import { z } from "zod"
+import { COMPANY_FIELDS, COMPANY_FIELD_LABELS_VI, type CompanyFieldKey } from "@/lib/constants/agarwood"
 
 const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_key")
 
@@ -11,7 +12,7 @@ const registerSchema = z.object({
   email: z.string().email("Email khong hop le"),
   phone: z.string().regex(/^(0|\+84)[0-9]{8,9}$/, "So dien thoai khong hop le"),
   companyName: z.string().optional().or(z.literal("")),
-  companyField: z.string().optional().or(z.literal("")),
+  companyField: z.enum(COMPANY_FIELDS).optional().or(z.literal("")),
   address: z.string().optional().or(z.literal("")),
   reason: z.string().min(10, "Ly do gia nhap toi thieu 10 ky tu"),
   honeypot: z.string().max(0).optional(),
@@ -32,6 +33,12 @@ export async function POST(request: Request) {
     }
 
     const { accountType, name, email, phone, companyName, companyField, address, reason } = parsed.data
+
+    // Lĩnh vực được client gửi dưới dạng canonical key (vd "natural_agarwood").
+    // Map sang label tiếng Việt cho admin email & Company.description (admin là VN).
+    const companyFieldLabelVi = companyField
+      ? COMPANY_FIELD_LABELS_VI[companyField as CompanyFieldKey]
+      : ""
 
     // Validate: BUSINESS requires companyName
     if (accountType === "BUSINESS" && (!companyName || companyName.length < 2)) {
@@ -81,7 +88,7 @@ export async function POST(request: Request) {
             .replace(/[^a-z0-9]+/g, "-")
             .replace(/^-|-$/g, "")
             + "-" + Date.now().toString(36),
-          description: `Lĩnh vực: ${companyField}\nĐịa chỉ: ${address || "Chưa cung cấp"}\n\nLý do đăng ký:\n${reason}`,
+          description: `Lĩnh vực: ${companyFieldLabelVi}\nĐịa chỉ: ${address || "Chưa cung cấp"}\n\nLý do đăng ký:\n${reason}`,
           address: address || null,
           isVerified: false,
           isPublished: false,
@@ -106,7 +113,7 @@ export async function POST(request: Request) {
             <p><strong>Email:</strong> ${email}</p>
             <p><strong>SĐT:</strong> ${phone}</p>
             ${companyName ? `<p><strong>Doanh nghiệp:</strong> ${companyName}</p>` : ""}
-            ${companyField ? `<p><strong>Lĩnh vực:</strong> ${companyField}</p>` : ""}
+            ${companyFieldLabelVi ? `<p><strong>Lĩnh vực:</strong> ${companyFieldLabelVi}</p>` : ""}
             ${address ? `<p><strong>${accountType === "INDIVIDUAL" ? "Chuyên môn" : "Địa chỉ"}:</strong> ${address}</p>` : ""}
             <p><strong>Lý do đăng ký:</strong></p>
             <p style="background:#f5f5f5;padding:12px;border-radius:8px;">${reason}</p>

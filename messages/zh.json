@@ -319,6 +319,16 @@
     "hasAccount": "已有账号？",
     "loginLink": "登录"
   },
+  "companyFields": {
+    "natural_agarwood": "天然沉香",
+    "essential_oil": "精油",
+    "incense": "沉香线香",
+    "handicraft": "手工艺品",
+    "export": "出口",
+    "processing": "加工",
+    "cultivation": "种植与采收",
+    "other": "其他"
+  },
   "registerSection": {
     "selectRole": "您以什么身份注册",
     "individualLabel": "个人/专家",
@@ -473,6 +483,9 @@
     "joinFee": "入会费（一次性）：",
     "annualFee": "年费：",
     "approvalTitle": "正式审批流程",
+    "approvalP1": "根据本会章程，入会申请将由<strong>本会常务委员会在季度会议上审议</strong>；自资料齐全之日起 30 天内，由会长决定正式批准会员资格。",
+    "approvalP2": "在正式获得认证之前，您会获得一个<em>基础账号</em>以便立即加入社区并分享内容。登录后，您可以<applicationLink>提交正式入会申请</applicationLink>，交由常务委员会审议。",
+    "approvalP3": "详细的会员权利与义务请参见<charterLink>本会章程（第 8–10 条）</charterLink>。",
     "submitForm": "提交申请"
   },
   "companies": {

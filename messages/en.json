@@ -319,6 +319,16 @@
     "hasAccount": "Already have an account?",
     "loginLink": "Sign in"
   },
+  "companyFields": {
+    "natural_agarwood": "Natural agarwood",
+    "essential_oil": "Essential oil",
+    "incense": "Agarwood incense",
+    "handicraft": "Handicrafts",
+    "export": "Export",
+    "processing": "Processing",
+    "cultivation": "Cultivation & harvesting",
+    "other": "Other"
+  },
   "registerSection": {
     "selectRole": "You are registering as",
     "individualLabel": "Individual / Expert",
@@ -473,6 +483,9 @@
     "joinFee": "Joining fee (one-time):",
     "annualFee": "Annual fee:",
     "approvalTitle": "Official Approval Process",
+    "approvalP1": "Per the Association's Charter, applications are <strong>reviewed by the Standing Committee at quarterly meetings</strong>; the President issues recognition within 30 days of receiving the complete dossier.",
+    "approvalP2": "Before official recognition, you receive a <em>Basic account</em> so you can join the community and post immediately. After signing in, you may <applicationLink>submit the official membership application</applicationLink> for the Standing Committee to review.",
+    "approvalP3": "See the full member rights & obligations in the <charterLink>Association Charter (Articles 8–10)</charterLink>.",
     "submitForm": "Submit Application"
   },
   "companies": {

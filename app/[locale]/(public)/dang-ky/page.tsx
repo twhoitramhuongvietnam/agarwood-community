@@ -137,33 +137,35 @@ export default async function DangKyPage() {
             </div>
           </div>
 
-          {/* Approval notice — giữ nguyên tiếng Việt cho phần pháp lý chi tiết */}
+          {/* Approval notice — rich text qua t.rich() để giữ link + emphasis trong i18n */}
           <div className="mt-8 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm">
             <div className="flex items-start gap-3">
               <span className="text-xl shrink-0">📝</span>
               <div className="space-y-2 text-amber-900">
                 <p className="font-semibold">{t("approvalTitle")}</p>
                 <p className="leading-relaxed">
-                  Theo Điều lệ Hội, đơn gia nhập sẽ được{" "}
-                  <strong>Ban Thường vụ Hội xét duyệt tại các cuộc họp hàng quý</strong>;
-                  Chủ tịch Hội quyết định công nhận Hội viên trong vòng 30 ngày kể từ
-                  ngày nộp hồ sơ đầy đủ.
+                  {t.rich("approvalP1", {
+                    strong: (chunks) => <strong>{chunks}</strong>,
+                  })}
                 </p>
                 <p className="leading-relaxed">
-                  Trước khi được công nhận chính thức, bạn được cấp{" "}
-                  <em>Tài khoản cơ bản</em> để truy cập cộng đồng và chia sẻ bài viết ngay.
-                  Sau khi đăng nhập, bạn có thể{" "}
-                  <Link href="/ket-nap" className="underline font-semibold text-amber-800 hover:text-amber-950">
-                    nộp đơn kết nạp chính thức
-                  </Link>{" "}
-                  để Ban Thường vụ xét duyệt.
+                  {t.rich("approvalP2", {
+                    em: (chunks) => <em>{chunks}</em>,
+                    applicationLink: (chunks) => (
+                      <Link href="/ket-nap" className="underline font-semibold text-amber-800 hover:text-amber-950">
+                        {chunks}
+                      </Link>
+                    ),
+                  })}
                 </p>
                 <p className="leading-relaxed">
-                  Xem chi tiết quyền & nghĩa vụ Hội viên tại{" "}
-                  <Link href="/dieu-le" className="underline font-semibold text-amber-800 hover:text-amber-950">
-                    Điều lệ Hội (Điều 8–10)
-                  </Link>
-                  .
+                  {t.rich("approvalP3", {
+                    charterLink: (chunks) => (
+                      <Link href="/dieu-le" className="underline font-semibold text-amber-800 hover:text-amber-950">
+                        {chunks}
+                      </Link>
+                    ),
+                  })}
                 </p>
               </div>
             </div>

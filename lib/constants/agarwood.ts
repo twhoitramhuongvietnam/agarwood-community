@@ -36,16 +36,32 @@ export const AGARWOOD_TYPES = [
   "Kết hợp",
 ] as const
 
+/** Canonical keys cho lĩnh vực doanh nghiệp. Lưu vào DB dưới dạng key này;
+ *  label hiển thị lookup từ i18n (`companyFields.<key>`) ở client, và từ
+ *  COMPANY_FIELD_LABELS_VI ở server (email admin, description). */
 export const COMPANY_FIELDS = [
-  "Trầm tự nhiên",
-  "Tinh dầu",
-  "Nhang trầm",
-  "Thủ công mỹ nghệ",
-  "Xuất khẩu",
-  "Chế biến",
-  "Trồng & khai thác",
-  "Khác",
+  "natural_agarwood",
+  "essential_oil",
+  "incense",
+  "handicraft",
+  "export",
+  "processing",
+  "cultivation",
+  "other",
 ] as const
+
+export type CompanyFieldKey = (typeof COMPANY_FIELDS)[number]
+
+export const COMPANY_FIELD_LABELS_VI: Record<CompanyFieldKey, string> = {
+  natural_agarwood: "Trầm tự nhiên",
+  essential_oil: "Tinh dầu",
+  incense: "Nhang trầm",
+  handicraft: "Thủ công mỹ nghệ",
+  export: "Xuất khẩu",
+  processing: "Chế biến",
+  cultivation: "Trồng & khai thác",
+  other: "Khác",
+}
 
 export const EMPLOYEE_COUNTS = [
   "1-10",

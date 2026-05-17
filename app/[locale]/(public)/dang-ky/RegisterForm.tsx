@@ -43,6 +43,7 @@ interface RegisterFormProps {
 
 export function RegisterForm({ accountType }: RegisterFormProps) {
   const t = useTranslations("registerForm")
+  const tFields = useTranslations("companyFields")
   const locale = useLocale()
   const validateField = makeValidator(t)
 
@@ -166,7 +167,7 @@ export function RegisterForm({ accountType }: RegisterFormProps) {
               <label htmlFor="reg-companyField" className={labelClass}>{t("industryLabel")} <span className="text-red-500">*</span></label>
               <select id="reg-companyField" name="companyField" value={form.companyField} onChange={handleChange} onBlur={handleBlur} className={inputClass}>
                 <option value="">{t("industryDefault")}</option>
-                {COMPANY_FIELDS.map(f => <option key={f} value={f}>{f}</option>)}
+                {COMPANY_FIELDS.map(f => <option key={f} value={f}>{tFields(f)}</option>)}
               </select>
               {errors.companyField && <p className={errorClass}>{errors.companyField}</p>}
             </div>
