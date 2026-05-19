@@ -10,6 +10,7 @@ import {
   calcCertFee,
   CERT_FEE_ONLINE_MIN,
   CERT_FEE_ONLINE_MAX,
+  CERT_FEE_FAST_TRACK,
 } from "@/lib/certification-fee"
 
 type BankInfo = {
@@ -34,7 +35,7 @@ type Product = {
   hasActiveCert: boolean
 }
 
-type ReviewMode = "ONLINE" | "OFFLINE"
+type ReviewMode = "ONLINE" | "OFFLINE" | "FAST_TRACK"
 
 type Step1Data = {
   productId: string
@@ -48,6 +49,11 @@ type Step2Data = {
   bankAccountName: string
   bankAccountNumber: string
   bankName: string
+  // FAST_TRACK only — info CN nhà nước user khai báo + ảnh giấy gốc upload.
+  govCertNumber: string
+  govCertIssuer: string
+  govCertIssuedAt: string // ISO date "YYYY-MM-DD"
+  documentUrls: string[]
 }
 
 type Step2Errors = Partial<Record<keyof Step2Data, string>>
@@ -113,7 +119,11 @@ function StepIndicator({ current }: { current: number }) {
 export default function NopDonPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  // `?renew=<id>` = đang gia hạn (hiển thị banner "Gia hạn").
+  // `?product=<id>` = preselect SP cho đơn mới (KHÔNG hiện banner gia hạn) —
+  // dùng cho menu Chứng nhận trên product card.
   const renewProductId = searchParams.get("renew")
+  const preselectProductId = renewProductId ?? searchParams.get("product")
   const [currentStep, setCurrentStep] = useState(1)
 
   // Step 1 state
@@ -127,12 +137,13 @@ export default function NopDonPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "available" | "renewal" | "review">("all")
   const [visibleCount, setVisibleCount] = useState(20)
 
-  // Pre-select product khi đang gia hạn
+  // Pre-select product khi đang gia hạn hoặc khi mở từ menu Chứng nhận
+  // trên product card (deep link `?product=` hoặc `?renew=`).
   useEffect(() => {
-    if (renewProductId && products.some((p) => p.id === renewProductId)) {
-      setSelectedProductId(renewProductId)
+    if (preselectProductId && products.some((p) => p.id === preselectProductId)) {
+      setSelectedProductId(preselectProductId)
     }
-  }, [renewProductId, products])
+  }, [preselectProductId, products])
 
   // Step 2 state
   const [applicantNote, setApplicantNote] = useState("")
@@ -141,6 +152,12 @@ export default function NopDonPage() {
   const [bankAccountName, setBankAccountName] = useState("")
   const [bankAccountNumber, setBankAccountNumber] = useState("")
   const [bankName, setBankName] = useState("")
+  // FAST_TRACK fields — govCert thông tin user khai báo + uploaded files.
+  const [govCertNumber, setGovCertNumber] = useState("")
+  const [govCertIssuer, setGovCertIssuer] = useState("")
+  const [govCertIssuedAt, setGovCertIssuedAt] = useState("")
+  const [documentUrls, setDocumentUrls] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
   const [step2Errors, setStep2Errors] = useState<Step2Errors>({})
 
   const salePriceNum = Number(productSalePrice.replace(/\D/g, "")) || 0
@@ -148,6 +165,31 @@ export default function NopDonPage() {
     () => calcCertFee(reviewMode, salePriceNum),
     [reviewMode, salePriceNum],
   )
+
+  async function handleDocUpload(files: FileList) {
+    if (documentUrls.length + files.length > 5) {
+      setStep2Errors((e) => ({ ...e, documentUrls: "Tối đa 5 file" }))
+      return
+    }
+    setStep2Errors((e) => ({ ...e, documentUrls: undefined }))
+    setUploading(true)
+    try {
+      for (const file of Array.from(files)) {
+        const fd = new FormData()
+        fd.append("file", file)
+        fd.append("folder", "chung-nhan")
+        const res = await fetch("/api/upload", { method: "POST", body: fd })
+        if (res.ok) {
+          const data = await res.json()
+          setDocumentUrls((prev) => [...prev, data.secure_url])
+        }
+      }
+    } catch {
+      setStep2Errors((e) => ({ ...e, documentUrls: "Tải lên thất bại" }))
+    } finally {
+      setUploading(false)
+    }
+  }
 
   // Step 3 state
   const [submitting, setSubmitting] = useState(false)
@@ -171,6 +213,10 @@ export default function NopDonPage() {
       setBankAccountName(d.bankAccountName)
       setBankAccountNumber(d.bankAccountNumber)
       setBankName(d.bankName)
+      setGovCertNumber(d.govCertNumber ?? "")
+      setGovCertIssuer(d.govCertIssuer ?? "")
+      setGovCertIssuedAt(d.govCertIssuedAt ?? "")
+      setDocumentUrls(Array.isArray(d.documentUrls) ? d.documentUrls : [])
     }
   }, [])
 
@@ -244,6 +290,18 @@ export default function NopDonPage() {
     const errors: Step2Errors = {}
     if (reviewMode === "ONLINE" && salePriceNum <= 0)
       errors.productSalePrice = "Vui lòng khai báo giá bán sản phẩm (VND)"
+    if (reviewMode === "FAST_TRACK") {
+      if (!govCertNumber.trim())
+        errors.govCertNumber = "Vui lòng nhập số/ký hiệu giấy CN nhà nước"
+      if (!govCertIssuer.trim())
+        errors.govCertIssuer = "Vui lòng nhập cơ quan cấp"
+      if (!govCertIssuedAt)
+        errors.govCertIssuedAt = "Vui lòng chọn ngày cấp"
+      else if (new Date(govCertIssuedAt) > new Date())
+        errors.govCertIssuedAt = "Ngày cấp không được nằm trong tương lai"
+      if (documentUrls.length === 0)
+        errors.documentUrls = "Vui lòng tải lên ảnh giấy CN nhà nước"
+    }
     if (!bankAccountName.trim())
       errors.bankAccountName = "Vui lòng nhập tên chủ tài khoản"
     if (!bankAccountNumber.trim())
@@ -262,6 +320,10 @@ export default function NopDonPage() {
       bankAccountName,
       bankAccountNumber,
       bankName,
+      govCertNumber,
+      govCertIssuer,
+      govCertIssuedAt,
+      documentUrls,
     }
     sessionStorage.setItem("cert_step2", JSON.stringify(step2Data))
     setCurrentStep(3)
@@ -282,6 +344,14 @@ export default function NopDonPage() {
           bankAccountName,
           bankAccountNumber,
           bankName,
+          documentUrls,
+          ...(reviewMode === "FAST_TRACK"
+            ? {
+                govCertNumber: govCertNumber.trim(),
+                govCertIssuer: govCertIssuer.trim(),
+                govCertIssuedAt,
+              }
+            : {}),
         }),
       })
       const data = await res.json()
@@ -338,10 +408,13 @@ export default function NopDonPage() {
             </div>
           ) : (
             <>
-              {/* Sticky banner — giữ "Đã chọn" hiển thị cả khi filter đẩy
-                  item ra khỏi list để user không bị mất context. */}
+              {/* CSS-sticky banner — bám viewport top khi user scroll qua
+                  list dài. Gồm "Đã chọn X" + nút "Tiếp theo" inline để user
+                  không phải scroll xuống cuối list mới tới CTA chính (đặc
+                  biệt cho deep link `?product=` đã pre-select sẵn).
+                  z-20 cao hơn pagination row, shadow giúp tách khỏi list. */}
               {selectedProduct && (
-                <div className="rounded-lg bg-brand-50 border border-brand-300 p-3 flex items-center gap-3">
+                <div className="sticky top-2 z-20 rounded-lg bg-brand-50 border border-brand-300 shadow-md p-3 flex items-center gap-3">
                   <div className="relative w-10 h-10 rounded-md bg-brand-100 overflow-hidden shrink-0">
                     {selectedProduct.imageUrls[0] ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -366,6 +439,13 @@ export default function NopDonPage() {
                     className="text-xs text-brand-600 hover:text-brand-900 underline shrink-0"
                   >
                     Bỏ chọn
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStep1Next}
+                    className="shrink-0 rounded-lg bg-brand-700 text-white px-4 py-1.5 text-sm font-medium hover:bg-brand-800 transition-colors"
+                  >
+                    Tiếp theo →
                   </button>
                 </div>
               )}
@@ -530,15 +610,9 @@ export default function NopDonPage() {
             </>
           )}
 
-          <div className="flex justify-end pt-2">
-            <button
-              onClick={handleStep1Next}
-              disabled={!selectedProductId}
-              className="bg-brand-700 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-brand-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Tiếp theo →
-            </button>
-          </div>
+          {/* CTA "Tiếp theo" đặt trong sticky banner "Đã chọn" phía trên —
+              tránh user phải scroll xuống cuối list dài. Banner luôn visible
+              khi đã chọn SP nên không cần button fallback ở cuối nữa. */}
         </div>
       )}
 
@@ -563,22 +637,35 @@ export default function NopDonPage() {
             />
           </div>
 
-          {/* Review method */}
+          {/* Review method — 3 lane:
+              - FAST_TRACK: SP đã có CN nhà nước, Hội endorse trọn đời, phí thấp
+              - ONLINE/OFFLINE: HĐTĐ vote, hiệu lực 1 năm */}
           <div className="space-y-2">
             <p className="text-sm font-medium text-brand-700">
               Hình thức thẩm định
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               {[
                 {
+                  value: "FAST_TRACK" as const,
+                  title: "Đã có CN nhà nước (Endorse)",
+                  badge: "Trọn đời",
+                  badgeColor: "bg-emerald-100 text-emerald-800",
+                  desc: `SP đã được cơ quan nhà nước cấp giấy chứng nhận. Hội xác minh giấy gốc và cấp endorsement. Phí ${CERT_FEE_FAST_TRACK.toLocaleString("vi-VN")}đ. Không cần HĐTĐ vote.`,
+                },
+                {
                   value: "ONLINE" as const,
-                  title: "Online",
-                  desc: "Sản phẩm nhỏ, dễ di chuyển, giá trị thấp. Phí = 2% giá bán, tối thiểu 1tr, tối đa 20tr.",
+                  title: "Thẩm định Online",
+                  badge: "1 năm",
+                  badgeColor: "bg-amber-100 text-amber-800",
+                  desc: "SP nhỏ, dễ di chuyển. HĐTĐ 5 thành viên vote qua ảnh/video. Phí = 2% giá bán, clamp [1tr, 20tr].",
                 },
                 {
                   value: "OFFLINE" as const,
-                  title: "Offline",
-                  desc: "Hội đồng thẩm định tại chỗ. Áp dụng cho sản phẩm giá trị cao, khó di chuyển. Phí cố định 200tr (all-inclusive).",
+                  title: "Thẩm định Offline (tại chỗ)",
+                  badge: "1 năm",
+                  badgeColor: "bg-amber-100 text-amber-800",
+                  desc: "SP giá trị cao, khó di chuyển. HĐTĐ 5 thành viên thẩm định trực tiếp tại kho/cơ sở. Phí 200tr (all-inclusive).",
                 },
               ].map((opt) => (
                 <label
@@ -590,15 +677,20 @@ export default function NopDonPage() {
                       : "border-brand-200 bg-white hover:border-brand-400",
                   )}
                 >
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="reviewMode"
-                      checked={reviewMode === opt.value}
-                      onChange={() => setReviewMode(opt.value)}
-                      className="accent-brand-600"
-                    />
-                    <span className="text-sm font-semibold text-brand-900">{opt.title}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="reviewMode"
+                        checked={reviewMode === opt.value}
+                        onChange={() => setReviewMode(opt.value)}
+                        className="accent-brand-600"
+                      />
+                      <span className="text-sm font-semibold text-brand-900">{opt.title}</span>
+                    </div>
+                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", opt.badgeColor)}>
+                      Hiệu lực {opt.badge}
+                    </span>
                   </div>
                   <p className="text-xs text-brand-500 pl-6">{opt.desc}</p>
                 </label>
@@ -634,12 +726,104 @@ export default function NopDonPage() {
             </div>
           )}
 
+          {/* Gov cert info — chỉ khi FAST_TRACK */}
+          {reviewMode === "FAST_TRACK" && (
+            <div className="space-y-3 rounded-xl border-2 border-emerald-200 bg-emerald-50/50 p-4">
+              <div className="flex items-start gap-2">
+                <span className="text-base">📜</span>
+                <div>
+                  <p className="text-sm font-semibold text-emerald-900">
+                    Thông tin giấy chứng nhận nhà nước
+                  </p>
+                  <p className="text-xs text-emerald-700 mt-0.5">
+                    Hội sẽ xác minh với cơ quan cấp trước khi endorse.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-emerald-900">
+                  Số/ký hiệu giấy chứng nhận <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={govCertNumber}
+                  onChange={(e) => setGovCertNumber(e.target.value)}
+                  placeholder="VD: 123/QĐ-BNN"
+                  className={cn(
+                    "w-full rounded-lg border px-3 py-2 text-sm",
+                    step2Errors.govCertNumber
+                      ? "border-red-400 bg-red-50"
+                      : "border-emerald-300 bg-white",
+                  )}
+                />
+                {step2Errors.govCertNumber && (
+                  <p className="text-xs text-red-600">{step2Errors.govCertNumber}</p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-emerald-900">
+                  Cơ quan cấp <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={govCertIssuer}
+                  onChange={(e) => setGovCertIssuer(e.target.value)}
+                  placeholder="VD: Sở NN&PTNT Khánh Hoà, Bộ Công Thương, UBND tỉnh..."
+                  className={cn(
+                    "w-full rounded-lg border px-3 py-2 text-sm",
+                    step2Errors.govCertIssuer
+                      ? "border-red-400 bg-red-50"
+                      : "border-emerald-300 bg-white",
+                  )}
+                />
+                {step2Errors.govCertIssuer && (
+                  <p className="text-xs text-red-600">{step2Errors.govCertIssuer}</p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-emerald-900">
+                  Ngày cấp <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={govCertIssuedAt}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setGovCertIssuedAt(e.target.value)}
+                  className={cn(
+                    "w-full rounded-lg border px-3 py-2 text-sm",
+                    step2Errors.govCertIssuedAt
+                      ? "border-red-400 bg-red-50"
+                      : "border-emerald-300 bg-white",
+                  )}
+                />
+                {step2Errors.govCertIssuedAt && (
+                  <p className="text-xs text-red-600">{step2Errors.govCertIssuedAt}</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Live fee preview */}
           <div className="rounded-xl bg-linear-to-r from-brand-50 to-amber-50 border border-brand-200 px-4 py-3 flex items-center justify-between">
             <div>
-              <p className="text-xs text-brand-600">Phí thẩm định ({reviewMode === "ONLINE" ? "Online" : "Offline"})</p>
+              <p className="text-xs text-brand-600">
+                Phí thẩm định —{" "}
+                {reviewMode === "ONLINE"
+                  ? "Online"
+                  : reviewMode === "OFFLINE"
+                    ? "Offline"
+                    : "Fast-track (CN nhà nước)"}
+              </p>
               <p className="text-lg font-bold text-brand-900">
                 {estimatedFee.toLocaleString("vi-VN")}đ
+              </p>
+              <p className="text-[11px] text-brand-500 mt-0.5">
+                {reviewMode === "FAST_TRACK"
+                  ? "Hiệu lực trọn đời — Hội endorse dựa trên CN nhà nước"
+                  : "Hiệu lực 1 năm — gia hạn lại trước khi hết hạn"}
               </p>
             </div>
             {reviewMode === "OFFLINE" && (
@@ -649,20 +833,53 @@ export default function NopDonPage() {
             )}
           </div>
 
-          {/* File upload */}
+          {/* File upload — FAST_TRACK bắt buộc upload ảnh giấy nhà nước. */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-brand-700">
-              Tài liệu đính kèm
+              {reviewMode === "FAST_TRACK"
+                ? "Ảnh giấy chứng nhận nhà nước"
+                : "Tài liệu đính kèm"}
+              {reviewMode === "FAST_TRACK" && <span className="text-red-500"> *</span>}
             </label>
             <input
               type="file"
               multiple
-              accept=".pdf,.jpg,.jpeg,.png"
+              accept="image/*"
+              disabled={uploading || documentUrls.length >= 5}
+              onChange={(e) => {
+                if (e.target.files) handleDocUpload(e.target.files)
+                e.target.value = ""
+              }}
               className="block w-full text-sm text-brand-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-brand-100 file:text-brand-700 file:font-medium hover:file:bg-brand-200 cursor-pointer"
             />
-            <p className="text-sm text-brand-500">
-              Hỗ trợ: PDF, JPG, PNG (tối đa 10MB mỗi file)
+            <p className="text-xs text-brand-500">
+              Hình ảnh JPG/PNG, tối đa 5 file, mỗi file ≤ 5MB.
+              {reviewMode === "FAST_TRACK" && " Chụp rõ cả mặt trước + mặt sau giấy."}
             </p>
+            {uploading && (
+              <p className="text-xs text-brand-500">Đang tải lên...</p>
+            )}
+            {documentUrls.length > 0 && (
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-2">
+                {documentUrls.map((url, i) => (
+                  <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-brand-200 group">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`Tài liệu ${i + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setDocumentUrls((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-600 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label="Xóa"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {step2Errors.documentUrls && (
+              <p className="text-xs text-red-600">{step2Errors.documentUrls}</p>
+            )}
           </div>
 
           {/* Refund bank info */}
@@ -786,9 +1003,37 @@ export default function NopDonPage() {
                 <div className="flex justify-between">
                   <span className="text-brand-600">Hình thức thẩm định</span>
                   <span className="font-semibold text-brand-900">
-                    {reviewMode === "ONLINE" ? "Online" : "Offline"}
+                    {reviewMode === "ONLINE"
+                      ? "Online (HĐTĐ — 1 năm)"
+                      : reviewMode === "OFFLINE"
+                        ? "Offline (HĐTĐ — 1 năm)"
+                        : "Endorse CN nhà nước (trọn đời)"}
                   </span>
                 </div>
+                {reviewMode === "FAST_TRACK" && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-brand-600">Số giấy CN nhà nước</span>
+                      <span className="font-semibold text-brand-900 max-w-48 truncate">
+                        {govCertNumber || "—"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-brand-600">Cơ quan cấp</span>
+                      <span className="font-semibold text-brand-900 max-w-48 truncate">
+                        {govCertIssuer || "—"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-brand-600">Ngày cấp</span>
+                      <span className="font-semibold text-brand-900">
+                        {govCertIssuedAt
+                          ? new Date(govCertIssuedAt).toLocaleDateString("vi-VN")
+                          : "—"}
+                      </span>
+                    </div>
+                  </>
+                )}
                 {reviewMode === "ONLINE" && salePriceNum > 0 && (
                   <div className="flex justify-between">
                     <span className="text-brand-600">Giá bán khai báo</span>

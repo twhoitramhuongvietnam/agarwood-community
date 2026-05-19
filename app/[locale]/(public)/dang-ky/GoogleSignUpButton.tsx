@@ -6,16 +6,30 @@ import { useLocale, useTranslations } from "next-intl"
 
 interface Props {
   accountType?: "BUSINESS" | "INDIVIDUAL"
+  termsAccepted: boolean
+  termsVersion: string
 }
 
-export function GoogleSignUpButton({ accountType = "BUSINESS" }: Props) {
+export function GoogleSignUpButton({
+  accountType = "BUSINESS",
+  termsAccepted,
+  termsVersion,
+}: Props) {
   const t = useTranslations("googleSignUp")
   const locale = useLocale()
   const [loading, setLoading] = useState(false)
+  const [warn, setWarn] = useState(false)
 
   function handleClick() {
+    if (!termsAccepted) {
+      setWarn(true)
+      return
+    }
     setLoading(true)
     document.cookie = `pending_account_type=${accountType}; Path=/; Max-Age=600; SameSite=Lax`
+    // Cookie này được signIn callback (lib/auth.ts) đọc khi tạo user mới qua
+    // Google → ghi TermsAcceptance kèm row user. Max-Age=600 (10p) đủ cho OAuth round-trip.
+    document.cookie = `pending_terms_version=${termsVersion}; Path=/; Max-Age=600; SameSite=Lax`
     // Sau sign-up → về homepage viewer mode (đồng nhất với login flow).
     signIn("google", { callbackUrl: `/${locale}` }, { prompt: "select_account" })
   }
@@ -23,11 +37,12 @@ export function GoogleSignUpButton({ accountType = "BUSINESS" }: Props) {
   const typeLabel = accountType === "INDIVIDUAL" ? t("individual") : t("business")
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <button
         onClick={handleClick}
         disabled={loading}
-        className="w-full flex items-center justify-center gap-3 rounded-xl border-2 border-brand-200 bg-white px-4 py-3 text-sm font-medium text-brand-800 hover:bg-brand-50 hover:border-brand-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        aria-disabled={!termsAccepted}
+        className="w-full flex items-center justify-center gap-3 rounded-xl border-2 border-brand-200 bg-white px-4 py-3 text-sm font-medium text-brand-800 hover:bg-brand-50 hover:border-brand-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed aria-disabled:opacity-60 aria-disabled:cursor-not-allowed"
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
@@ -37,6 +52,12 @@ export function GoogleSignUpButton({ accountType = "BUSINESS" }: Props) {
         </svg>
         {loading ? t("redirecting") : t("buttonLabel", { type: typeLabel })}
       </button>
+
+      {warn && !termsAccepted && (
+        <p className="text-xs text-red-600 text-center">
+          Vui lòng tích vào ô đồng ý điều khoản trước khi đăng ký bằng Google.
+        </p>
+      )}
 
       <p className="text-xs text-brand-400 text-center">
         {t("note")}

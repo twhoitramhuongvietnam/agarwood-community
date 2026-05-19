@@ -5,6 +5,11 @@ import { prisma } from "@/lib/prisma"
 import { getMonthlyQuota, startOfMonth, startOfNextMonth } from "@/lib/quota"
 import { getMonthlyProductQuota } from "@/lib/product-quota"
 import { writeProductRevision } from "@/lib/product-revision"
+import {
+  getClientIpFromHeaders,
+  getTermsDocument,
+  recordTermsAcceptance,
+} from "@/lib/terms"
 import { getSortedFeedPostIds } from "@/lib/feed-sort"
 import {
   getCachedFeedFirstPage,
@@ -278,6 +283,10 @@ export async function POST(request: Request) {
        *  default từ PRODUCT_DEFAULT_SHIPPING / PRODUCT_DEFAULT_RETURN. */
       shippingPolicy?: string
       returnPolicy?: string
+      /** Phiên bản cam kết đăng SP user đã tick (PostEditor gửi khi
+       *  category=PRODUCT + owner tự đăng). Server validate + ghi
+       *  TermsAcceptance kèm productId làm contextRef. */
+      termsVersion?: string
     }
   }
 
@@ -443,6 +452,28 @@ export async function POST(request: Request) {
     company.ownerId !== userId &&
     (session.user.role === "ADMIN" || session.user.role === "INFINITE")
   )
+
+  // Cam kết đăng SP — bắt buộc khi owner tự đăng. Admin override scenario
+  // skip (admin không thay mặt owner đồng ý cam kết — terms phải do owner
+  // tick ở UI của họ).
+  const requiresProductTerms = !adminOverride
+  if (requiresProductTerms) {
+    if (!product?.termsVersion) {
+      return NextResponse.json(
+        { error: "Thiếu xác nhận cam kết đăng sản phẩm. Vui lòng tải lại trang và tích đủ 3 ô cam kết." },
+        { status: 400 },
+      )
+    }
+    if (!getTermsDocument("PRODUCT_LISTING", product.termsVersion)) {
+      return NextResponse.json(
+        { error: "Phiên bản cam kết không hợp lệ. Vui lòng tải lại trang và thử lại." },
+        { status: 400 },
+      )
+    }
+  }
+  const productTermsVersion = product?.termsVersion ?? null
+  const acceptanceIp = getClientIpFromHeaders(request.headers)
+  const acceptanceUa = request.headers.get("user-agent")
   let effectiveOwnerId = userId
   let effectiveOwnerPriority = user.displayPriority
   let effectiveOwnerRole: "ADMIN" | "INFINITE" | "VIP" | "GUEST" | string = user.role
@@ -521,6 +552,23 @@ export async function POST(request: Request) {
       reason: adminOverride ? "Admin đăng SP hộ DN qua /feed/tao-bai" : undefined,
       tx,
     })
+    // Ghi TermsAcceptance kèm contextRef=productId làm bằng chứng pháp lý.
+    // Owner đăng → ghi acceptance dưới tên owner (= effectiveOwnerId khi
+    // admin override, = session userId khi owner tự đăng). Admin override
+    // (requiresProductTerms=false) → skip, không tạo row giả mạo.
+    if (requiresProductTerms && productTermsVersion) {
+      await recordTermsAcceptance(
+        {
+          userId: effectiveOwnerId,
+          type: "PRODUCT_LISTING",
+          version: productTermsVersion,
+          ipAddress: acceptanceIp,
+          userAgent: acceptanceUa,
+          contextRef: newProduct.id,
+        },
+        tx,
+      )
+    }
     return { post, product: newProduct }
   })
 

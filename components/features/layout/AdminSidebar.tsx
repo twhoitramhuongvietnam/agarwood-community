@@ -31,6 +31,7 @@ import {
   BarChart3,
   Wallet,
   Activity,
+  ShieldCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePendingCounts } from "@/components/features/admin/PendingCountsContext"
@@ -152,6 +153,7 @@ export const ADMIN_NAV_GROUPS: NavGroup[] = [
       { label: "Menu navbar", href: "/admin/menu", icon: MenuIcon },
       { label: "Trang tĩnh", href: "/admin/trang-tinh", icon: FileText },
       { label: "Giám sát Free Tier", href: "/admin/giam-sat", icon: Activity },
+      { label: "Lịch sử đồng ý điều khoản", href: "/admin/dieu-khoan", icon: ShieldCheck },
       { label: "Cài đặt", href: "/admin/cai-dat", icon: Settings },
     ],
   },

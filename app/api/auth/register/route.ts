@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma"
 import { Resend } from "resend"
 import { z } from "zod"
 import { COMPANY_FIELDS, COMPANY_FIELD_LABELS_VI, type CompanyFieldKey } from "@/lib/constants/agarwood"
+import {
+  getClientIpFromHeaders,
+  getTermsDocument,
+  recordTermsAcceptance,
+} from "@/lib/terms"
 
 const resend = new Resend(process.env.RESEND_API_KEY || "re_dummy_key")
 
@@ -15,6 +20,7 @@ const registerSchema = z.object({
   companyField: z.enum(COMPANY_FIELDS).optional().or(z.literal("")),
   address: z.string().optional().or(z.literal("")),
   reason: z.string().min(10, "Ly do gia nhap toi thieu 10 ky tu"),
+  termsVersion: z.string().min(1, "Phien ban dieu khoan khong hop le"),
   honeypot: z.string().max(0).optional(),
 })
 
@@ -32,7 +38,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 })
     }
 
-    const { accountType, name, email, phone, companyName, companyField, address, reason } = parsed.data
+    const { accountType, name, email, phone, companyName, companyField, address, reason, termsVersion } = parsed.data
+
+    // Validate terms version tồn tại trong registry — chặn body manipulate.
+    // Server tin version từ body (đã validate registry) — không tự override
+    // sang CURRENT_VERSION để giữ đúng phiên bản mà user thực sự thấy/đồng ý.
+    if (!getTermsDocument("REGISTRATION", termsVersion)) {
+      return NextResponse.json(
+        { error: "Phien ban dieu khoan khong hop le. Vui long tai lai trang va thu lai." },
+        { status: 400 },
+      )
+    }
 
     // Lĩnh vực được client gửi dưới dạng canonical key (vd "natural_agarwood").
     // Map sang label tiếng Việt cho admin email & Company.description (admin là VN).
@@ -96,7 +112,26 @@ export async function POST(request: Request) {
       }
     }
 
-    const user = await prisma.user.create({ data: userData })
+    const ipAddress = getClientIpFromHeaders(request.headers)
+    const userAgent = request.headers.get("user-agent")
+
+    // Tạo user + ghi TermsAcceptance trong cùng transaction — fail thì rollback
+    // cả 2, đảm bảo không có user nào tồn tại mà không có row đồng ý điều khoản.
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({ data: userData })
+      await recordTermsAcceptance(
+        {
+          userId: created.id,
+          type: "REGISTRATION",
+          version: termsVersion,
+          ipAddress,
+          userAgent,
+          contextRef: null,
+        },
+        tx,
+      )
+      return created
+    })
 
     // Email admin about new registration
     try {

@@ -138,8 +138,9 @@ enum CertStatus {
 }
 
 enum ReviewMode {
-  ONLINE // sản phẩm nhỏ, giá trị thấp — 2% giá bán, clamp [1tr, 20tr]
-  OFFLINE // thẩm định tại chỗ — flat 200tr, all-inclusive
+  ONLINE // sản phẩm nhỏ, giá trị thấp — 2% giá bán, clamp [1tr, 20tr]. HĐTĐ 5 người, hiệu lực 1 năm.
+  OFFLINE // thẩm định tại chỗ — flat 200tr, all-inclusive. HĐTĐ 5 người, hiệu lực 1 năm.
+  FAST_TRACK // SP đã có CN nhà nước — phí thấp (500k). Admin endorse 1-step, KHÔNG cần council. Hiệu lực TRỌN ĐỜI (certExpiredAt=null).
 }
 
 enum ReviewVote {
@@ -302,6 +303,7 @@ model User {
   committeeMemberships         CommitteeMembership[]   @relation("CommitteeMember")
   committeeAssignmentsMade     CommitteeMembership[]   @relation("CommitteeAssignedBy")
   ledgerTransactionsRecorded   LedgerTransaction[]     @relation("LedgerTransactionRecorder")
+  termsAcceptances             TermsAcceptance[]
 
   @@index([role])
   @@index([accountType])
@@ -701,6 +703,13 @@ model Certification {
   reviewMode       ReviewMode @default(ONLINE)
   productSalePrice BigInt? // snapshot giá bán lúc nộp đơn — chỉ bắt buộc khi reviewMode=ONLINE (dùng để tính phí 2%)
   certCode         String?    @unique // HTHVN-YYYY-NNNN — set khi APPROVED, dùng cho /verify
+
+  // FAST_TRACK only — thông tin CN nhà nước user khai báo. Hội xác minh giấy
+  // gốc (qua documentUrls) + endorse. Bắt buộc khi reviewMode=FAST_TRACK,
+  // null cho ONLINE/OFFLINE. govCertIssuer = tên cơ quan cấp (Sở/Bộ/UBND...).
+  govCertNumber   String?
+  govCertIssuedAt DateTime?
+  govCertIssuer   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1747,4 +1756,44 @@ enum ServiceQuotaService {
 enum ServiceQuotaSource {
   AUTO   // fetch tự động qua API
   MANUAL // admin nhập tay (cho service không có public API free-tier)
+}
+
+// ============================================================
+// TERMS ACCEPTANCE — Audit log đồng ý điều khoản
+// ============================================================
+//
+// Mỗi lần user đồng ý 1 bản điều khoản (đăng ký hội viên, đăng SP mới...)
+// → ghi 1 row. Mục đích: bằng chứng pháp lý có thể trích xuất khi cơ quan
+// chức năng yêu cầu. Nội dung điều khoản lưu immutable trong
+// `content/terms/<type>_<version>.ts` (git-tracked), bảng này chỉ lưu
+// pointer (type + version) + bằng chứng (timestamp, IP, UA, contextRef).
+//
+// type:        "REGISTRATION" | "PRODUCT_LISTING" (registry trong lib/terms.ts)
+// version:     "v1", "v2"... — phải khớp với file content/terms
+// contextRef:  productId nếu type=PRODUCT_LISTING; null nếu type=REGISTRATION
+//              (1 user có nhiều row PRODUCT_LISTING — mỗi SP 1 row).
+
+enum TermsType {
+  REGISTRATION
+  PRODUCT_LISTING
+}
+
+model TermsAcceptance {
+  id         String    @id @default(cuid())
+  userId     String
+  type       TermsType
+  version    String    // "v1" — khớp với file content/terms/<type>_<version>.ts
+  acceptedAt DateTime  @default(now())
+  ipAddress  String?
+  userAgent  String?   @db.Text
+  /// productId khi type=PRODUCT_LISTING; null khi type=REGISTRATION
+  contextRef String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([type, version])
+  @@index([contextRef])
+  @@index([acceptedAt])
+  @@map("terms_acceptances")
 }

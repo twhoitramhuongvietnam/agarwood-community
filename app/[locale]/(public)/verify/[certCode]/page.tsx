@@ -81,6 +81,9 @@ async function resolveCertification(code: string) {
       reviewMode: null,
       status: product.certStatus,
       productSalePrice: null,
+      govCertNumber: null,
+      govCertIssuer: null,
+      govCertIssuedAt: null,
       product: {
         name: product.name,
         slug: product.slug,
@@ -101,6 +104,9 @@ async function resolveCertification(code: string) {
     reviewMode: latestCert.reviewMode,
     status: product.certStatus,
     productSalePrice: latestCert.productSalePrice,
+    govCertNumber: latestCert.govCertNumber,
+    govCertIssuer: latestCert.govCertIssuer,
+    govCertIssuedAt: latestCert.govCertIssuedAt,
     product: {
       name: product.name,
       slug: product.slug,
@@ -135,8 +141,13 @@ export default async function VerifyPage({ params }: Props) {
     return <NotApproved name={cert.product.name} />
   }
 
+  // FAST_TRACK = trọn đời → certExpiredAt=null, skip expiry check. ONLINE/OFFLINE
+  // có certExpiredAt → check như cũ.
+  const isFastTrack = cert.reviewMode === "FAST_TRACK"
   const isExpired =
-    cert.product.certExpiredAt && new Date(cert.product.certExpiredAt) < new Date()
+    !isFastTrack &&
+    cert.product.certExpiredAt &&
+    new Date(cert.product.certExpiredAt) < new Date()
   if (isExpired) {
     return <Expired name={cert.product.name} />
   }
@@ -151,8 +162,13 @@ export default async function VerifyPage({ params }: Props) {
   })
 
   const displayDate = formatDate(cert.approvedAt ?? cert.product.certApprovedAt)
-  const displayExpiredAt = formatDate(cert.product.certExpiredAt)
+  const displayExpiredAt = isFastTrack
+    ? "Trọn đời"
+    : formatDate(cert.product.certExpiredAt)
   const displayCode = cert.certCode ?? "—"
+  const govCertIssuedAtStr = cert.govCertIssuedAt
+    ? formatDate(cert.govCertIssuedAt)
+    : null
 
   return (
     <div className="bg-linear-to-br from-amber-50/40 via-white to-amber-50/40 min-h-screen py-8 print:bg-white print:py-0">
@@ -250,7 +266,8 @@ export default async function VerifyPage({ params }: Props) {
                 </p>
                 <p className="text-[10px] text-amber-700 mt-0.5">Cấp ngày {displayDate}</p>
                 <p className="text-[10px] text-amber-700 font-semibold">
-                  Hiệu lực đến {displayExpiredAt}
+                  {isFastTrack ? "Hiệu lực " : "Hiệu lực đến "}
+                  {displayExpiredAt}
                 </p>
               </div>
             </header>
@@ -288,12 +305,38 @@ export default async function VerifyPage({ params }: Props) {
                   </span>
                 </p>
               )}
-              <p className="text-[13px] text-amber-900 max-w-[680px] mx-auto leading-relaxed mt-3">
-                đã được <strong>Hội đồng thẩm định</strong> gồm{" "}
-                <strong>{cert.reviews.length || 5}</strong> thành viên của{" "}
-                <strong>Hội Trầm Hương Việt Nam</strong> xem xét, đánh giá và nhất
-                trí cấp chứng nhận theo đúng quy trình thẩm định.
-              </p>
+              {isFastTrack ? (
+                <p className="text-[13px] text-amber-900 max-w-[680px] mx-auto leading-relaxed mt-3">
+                  đã được <strong>Hội Trầm Hương Việt Nam</strong> xác minh và
+                  cấp <strong>endorsement</strong> dựa trên Giấy chứng nhận của
+                  cơ quan nhà nước có thẩm quyền
+                  {cert.govCertIssuer && (
+                    <>
+                      {" "}
+                      — <strong>{cert.govCertIssuer}</strong>
+                    </>
+                  )}
+                  {cert.govCertNumber && (
+                    <>
+                      , số <strong className="font-mono">{cert.govCertNumber}</strong>
+                    </>
+                  )}
+                  {govCertIssuedAtStr && (
+                    <>
+                      {" "}
+                      cấp ngày <strong>{govCertIssuedAtStr}</strong>
+                    </>
+                  )}
+                  .
+                </p>
+              ) : (
+                <p className="text-[13px] text-amber-900 max-w-[680px] mx-auto leading-relaxed mt-3">
+                  đã được <strong>Hội đồng thẩm định</strong> gồm{" "}
+                  <strong>{cert.reviews.length || 5}</strong> thành viên của{" "}
+                  <strong>Hội Trầm Hương Việt Nam</strong> xem xét, đánh giá và nhất
+                  trí cấp chứng nhận theo đúng quy trình thẩm định.
+                </p>
+              )}
             </div>
 
             <div className="flex-1" />
@@ -316,22 +359,44 @@ export default async function VerifyPage({ params }: Props) {
                 </p>
               </div>
 
-              {/* Council members — vertical list, names only, no comments để giữ
-                  mỹ thuật. Nhận xét xem qua trang verify online. */}
+              {/* Middle column: HĐTĐ list (ONLINE/OFFLINE) hoặc Endorsement
+                  source (FAST_TRACK). Tuỳ loại đơn — mỹ thuật giữ chỗ. */}
               <div className="col-span-5 self-stretch flex flex-col">
-                <p className="text-[9px] tracking-[0.35em] text-amber-700 uppercase text-center mb-2">
-                  Hội đồng thẩm định
-                </p>
-                <ul className="grid grid-cols-1 gap-1 text-[12px] leading-tight text-amber-900 px-2">
-                  {cert.reviews.slice(0, 5).map((r) => (
-                    <li key={r.id} className="flex items-baseline gap-2 justify-center">
-                      <span className="text-amber-700" aria-hidden>
-                        ✦
-                      </span>
-                      <span className="font-medium">{r.reviewer.name}</span>
-                    </li>
-                  ))}
-                </ul>
+                {isFastTrack ? (
+                  <>
+                    <p className="text-[9px] tracking-[0.35em] text-amber-700 uppercase text-center mb-2">
+                      Endorsement nguồn gốc
+                    </p>
+                    <div className="text-center text-[11px] leading-tight text-amber-900 px-2 space-y-0.5">
+                      <p className="font-semibold">{cert.govCertIssuer ?? "—"}</p>
+                      <p className="font-mono text-[10px]">{cert.govCertNumber ?? "—"}</p>
+                      {govCertIssuedAtStr && (
+                        <p className="text-[10px] text-amber-700">
+                          cấp {govCertIssuedAtStr}
+                        </p>
+                      )}
+                      <p className="text-[9px] italic text-amber-700 mt-1">
+                        Hội xác minh & cấp endorsement
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[9px] tracking-[0.35em] text-amber-700 uppercase text-center mb-2">
+                      Hội đồng thẩm định
+                    </p>
+                    <ul className="grid grid-cols-1 gap-1 text-[12px] leading-tight text-amber-900 px-2">
+                      {cert.reviews.slice(0, 5).map((r) => (
+                        <li key={r.id} className="flex items-baseline gap-2 justify-center">
+                          <span className="text-amber-700" aria-hidden>
+                            ✦
+                          </span>
+                          <span className="font-medium">{r.reviewer.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
               </div>
 
               {/* Signature + stamp */}

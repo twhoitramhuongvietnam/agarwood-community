@@ -28,6 +28,19 @@ const getCompanyBySlug = cache(async (slug: string) =>
         select: {
           id: true, name: true, name_en: true, name_zh: true, name_ar: true, slug: true, imageUrls: true,
           category: true, priceRange: true, certStatus: true, badgeUrl: true,
+          // postId cần cho menu Xoá trên card — DELETE /api/posts/[postId]
+          // sẽ soft-delete Post + unpublish Product. null = SP legacy không có
+          // linked Post, menu sẽ ẩn item Xoá cho row đó.
+          postId: true,
+          // certStatus đã chọn ở trên; thêm dấu hiệu có đơn đang xử lý để menu
+          // ẩn item "Chứng nhận" khi đang PENDING/UNDER_REVIEW. certStatus
+          // default DRAFT cho mọi SP mới → không reliable, phải check
+          // Certification trực tiếp.
+          certifications: {
+            where: { status: { in: ["DRAFT", "PENDING", "UNDER_REVIEW"] } },
+            select: { id: true },
+            take: 1,
+          },
         },
       },
       galleryImages: {
@@ -190,7 +203,12 @@ export default async function CompanyProfilePage({ params }: Props) {
         <CompanyTabs
           companyId={company.id}
           description={l(company, "description")}
-          products={company.products.map((p) => ({ ...p, imageUrls: p.imageUrls as string[] }))}
+          products={company.products.map((p) => ({
+            ...p,
+            imageUrls: p.imageUrls as string[],
+            // Có đơn cert đang xử lý → menu sẽ ẩn item "Chứng nhận" cho card này
+            hasActiveCert: p.certifications.length > 0,
+          }))}
           galleryImages={company.galleryImages}
           newsItems={newsItems}
           companyName={l(company, "name")}
@@ -203,6 +221,7 @@ export default async function CompanyProfilePage({ params }: Props) {
           website={company.website}
           postCount={postCount}
           canEdit={canEdit}
+          isOwner={isOwner}
         />
       </div>
       </div>

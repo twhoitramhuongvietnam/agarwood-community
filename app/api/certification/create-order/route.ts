@@ -23,14 +23,25 @@ export async function POST(request: Request) {
     )
   }
 
-  const { productId, applicantNote, reviewMode, productSalePrice, bankAccountName, bankAccountNumber, bankName } =
-    await request.json()
+  const {
+    productId,
+    applicantNote,
+    reviewMode,
+    productSalePrice,
+    bankAccountName,
+    bankAccountNumber,
+    bankName,
+    documentUrls,
+    govCertNumber,
+    govCertIssuedAt,
+    govCertIssuer,
+  } = await request.json()
 
   if (!productId) {
     return NextResponse.json({ error: "Thiếu thông tin sản phẩm" }, { status: 400 })
   }
 
-  if (reviewMode !== "ONLINE" && reviewMode !== "OFFLINE") {
+  if (reviewMode !== "ONLINE" && reviewMode !== "OFFLINE" && reviewMode !== "FAST_TRACK") {
     return NextResponse.json({ error: "Hình thức xét duyệt không hợp lệ" }, { status: 400 })
   }
 
@@ -39,6 +50,47 @@ export async function POST(request: Request) {
     if (!Number.isFinite(salePrice!) || (salePrice as number) <= 0) {
       return NextResponse.json({ error: "Vui lòng khai báo giá bán sản phẩm (VND) cho thẩm định online" }, { status: 400 })
     }
+  }
+
+  // FAST_TRACK bắt buộc khai báo thông tin CN nhà nước + đính kèm ảnh giấy gốc.
+  // Hội xác minh giấy gốc trước khi endorse — thiếu = không thể audit, từ chối.
+  let govIssuedAt: Date | null = null
+  let cleanDocumentUrls: string[] = []
+  if (reviewMode === "FAST_TRACK") {
+    if (!govCertNumber || typeof govCertNumber !== "string" || !govCertNumber.trim()) {
+      return NextResponse.json({ error: "Vui lòng nhập số/ký hiệu giấy chứng nhận nhà nước" }, { status: 400 })
+    }
+    if (!govCertIssuer || typeof govCertIssuer !== "string" || !govCertIssuer.trim()) {
+      return NextResponse.json({ error: "Vui lòng nhập cơ quan cấp giấy chứng nhận" }, { status: 400 })
+    }
+    if (!govCertIssuedAt || typeof govCertIssuedAt !== "string") {
+      return NextResponse.json({ error: "Vui lòng nhập ngày cấp giấy chứng nhận" }, { status: 400 })
+    }
+    const parsed = new Date(govCertIssuedAt)
+    if (isNaN(parsed.getTime())) {
+      return NextResponse.json({ error: "Ngày cấp không hợp lệ" }, { status: 400 })
+    }
+    if (parsed > new Date()) {
+      return NextResponse.json({ error: "Ngày cấp không được nằm trong tương lai" }, { status: 400 })
+    }
+    govIssuedAt = parsed
+    if (!Array.isArray(documentUrls) || documentUrls.length === 0) {
+      return NextResponse.json(
+        { error: "Vui lòng đính kèm ảnh/PDF giấy CN nhà nước để Hội xác minh" },
+        { status: 400 },
+      )
+    }
+    cleanDocumentUrls = documentUrls.filter(
+      (u): u is string => typeof u === "string" && u.length > 0,
+    )
+    if (cleanDocumentUrls.length === 0) {
+      return NextResponse.json({ error: "Tài liệu đính kèm không hợp lệ" }, { status: 400 })
+    }
+  } else if (Array.isArray(documentUrls)) {
+    // ONLINE/OFFLINE: documentUrls optional — vẫn chấp nhận nếu user upload.
+    cleanDocumentUrls = documentUrls.filter(
+      (u): u is string => typeof u === "string" && u.length > 0,
+    )
   }
 
   // Check for duplicate pending cert on same product
@@ -82,7 +134,7 @@ export async function POST(request: Request) {
       productId,
       applicantId: session.user.id,
       status: "DRAFT",
-      documentUrls: [],
+      documentUrls: cleanDocumentUrls,
       applicantNote: applicantNote ?? null,
       reviewMode,
       productSalePrice: salePrice != null ? BigInt(Math.round(salePrice)) : null,
@@ -90,6 +142,10 @@ export async function POST(request: Request) {
       refundBankName: bankName,
       refundAccountName: bankAccountName,
       refundAccountNo: bankAccountNumber,
+      // FAST_TRACK only — null cho ONLINE/OFFLINE.
+      govCertNumber: reviewMode === "FAST_TRACK" ? govCertNumber!.trim() : null,
+      govCertIssuer: reviewMode === "FAST_TRACK" ? govCertIssuer!.trim() : null,
+      govCertIssuedAt: govIssuedAt,
     },
   })
 
@@ -109,7 +165,12 @@ export async function POST(request: Request) {
     const adminEmail = (await prisma.siteConfig.findUnique({ where: { key: "association_email" } }))?.value ?? "admin@hoi-tram-huong.vn"
     const product = await prisma.product.findUnique({ where: { id: productId }, select: { name: true } })
     const feeText = fee.toLocaleString("vi-VN") + "đ"
-    const modeText = reviewMode === "ONLINE" ? "Online" : "Offline"
+    const modeText =
+      reviewMode === "ONLINE"
+        ? "Online (HĐTĐ vote)"
+        : reviewMode === "OFFLINE"
+          ? "Offline (HĐTĐ thẩm định trực tiếp)"
+          : "Fast-track (endorse CN nhà nước)"
     await resend.emails.send({
       from: "Hội Trầm Hương Việt Nam <noreply@hoitramhuong.vn>",
       to: adminEmail,

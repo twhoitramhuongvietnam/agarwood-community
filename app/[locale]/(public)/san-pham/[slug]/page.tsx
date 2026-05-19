@@ -1,5 +1,6 @@
 import { cache } from "react"
 import { auth } from "@/lib/auth"
+import { cn } from "@/lib/utils"
 import { isAdmin } from "@/lib/roles"
 import { getUserPermissions, hasPermission } from "@/lib/permissions"
 import { getLocale, getTranslations } from "next-intl/server"
@@ -286,14 +287,38 @@ export default async function ProductDetailPage({ params }: Props) {
                   <span className="flex-1 text-neutral-800">
                     {/* Click → trang xác minh chứng nhận. Ưu tiên certCode chính
                         thức (HTHVN-YYYY-NNNN); fallback slug cho cert legacy
-                        chưa có certCode. */}
+                        chưa có certCode. FAST_TRACK = endorsement trọn đời từ
+                        CN nhà nước; ONLINE/OFFLINE = chứng nhận HĐTĐ 1 năm. */}
                     <Link
                       href={`/verify/${approvedCert?.certCode ?? product.slug}`}
                       title="Xem chứng nhận chính thức"
-                      className="inline-flex items-center gap-1 font-medium text-amber-800 underline-offset-2 hover:underline hover:text-amber-900"
+                      className={cn(
+                        "inline-flex items-center gap-1 font-medium underline-offset-2 hover:underline",
+                        approvedCert?.reviewMode === "FAST_TRACK"
+                          ? "text-emerald-800 hover:text-emerald-900"
+                          : "text-amber-800 hover:text-amber-900",
+                      )}
                     >
-                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-600 text-white text-[10px] font-bold">✓</span>
+                      <span
+                        className={cn(
+                          "inline-flex h-4 w-4 items-center justify-center rounded-full text-white text-[10px] font-bold",
+                          approvedCert?.reviewMode === "FAST_TRACK"
+                            ? "bg-emerald-600"
+                            : "bg-amber-600",
+                        )}
+                      >
+                        ✓
+                      </span>
                       Hội Trầm Hương Việt Nam
+                      {approvedCert?.reviewMode === "FAST_TRACK" ? (
+                        <span className="ml-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
+                          Trọn đời
+                        </span>
+                      ) : (
+                        <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+                          1 năm
+                        </span>
+                      )}
                     </Link>
                     {certDate && (
                       <span className="ml-1 text-xs text-neutral-500">— Cấp {certDate}</span>

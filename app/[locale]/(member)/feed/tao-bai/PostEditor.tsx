@@ -5,10 +5,17 @@ import { useTranslations } from "next-intl"
 import { RichTextEditor, type RichTextEditorHandle } from "@/components/editor/RichTextEditor"
 import { Suspense, useState, useEffect, useRef, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import Image from "next/image"
 import dynamic from "next/dynamic"
 import DOMPurify from "isomorphic-dompurify"
 import { cn } from "@/lib/utils"
+
+/** Phiên bản cam kết đăng SP hiện hành — đồng bộ với
+ *  CURRENT_VERSION.PRODUCT_LISTING trong lib/terms.ts. Khi user tạo SP mới
+ *  qua flow này (category=PRODUCT), 3 checkbox cam kết phải được tick →
+ *  server validate version + ghi TermsAcceptance kèm productId làm contextRef. */
+const PRODUCT_TERMS_VERSION = "v1"
 import {
   PRODUCT_CATEGORIES,
   PRODUCT_DEFAULT_SHIPPING,
@@ -161,6 +168,12 @@ function TaoBaiContent({
   // default. Placeholder hiển thị default để user biết SP sẽ nhận giá trị gì.
   const [productShippingPolicy, setProductShippingPolicy] = useState("")
   const [productReturnPolicy, setProductReturnPolicy] = useState("")
+  // Cam kết đăng SP — yêu cầu tick đủ 3 ô trước khi submit khi tạo mới
+  // category=PRODUCT bởi chính chủ. Admin đăng hộ (showAdminPicker=true) →
+  // skip vì admin không thay mặt owner đồng ý cam kết.
+  const [ackProductReal, setAckProductReal] = useState(false)
+  const [ackNoFake, setAckNoFake] = useState(false)
+  const [ackLiability, setAckLiability] = useState(false)
   // Phase 3.5 (2026-04): admin đăng SP hộ DN — phải chọn DN.
   // Phase 3.6 follow-up: chỉ hiện admin picker khi user là admin/INFINITE
   // VÀ KHÔNG có DN riêng (true "đăng hộ" scenario). Nếu admin/INFINITE đã
@@ -169,6 +182,12 @@ function TaoBaiContent({
   const isAdminUser = isAdminUserProp
   const showAdminPicker = isAdminUser && !ownCompany
   const [adminPickedCompany, setAdminPickedCompany] = useState<CompanySummary | null>(null)
+  // Cam kết bắt buộc khi: tạo mới + category=PRODUCT + KHÔNG phải admin đăng hộ.
+  // Admin override scenario: cam kết là của owner (chủ DN), không phải admin
+  // → admin nên trao đổi terms ngoài hệ thống. Trong production hiếm khi rơi
+  // vào scenario này — đa số member tự đăng SP, nên đây là edge case.
+  const requiresProductTerms = !editId && category === "PRODUCT" && !showAdminPicker
+  const allProductAcksChecked = ackProductReal && ackNoFake && ackLiability
   const [preview, setPreview] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -349,6 +368,12 @@ function TaoBaiContent({
         setError("Admin đăng SP hộ cần chọn doanh nghiệp.")
         return
       }
+      // Cam kết đăng SP — chặn submit nếu chưa tick đủ 3 ô (chỉ áp dụng cho
+      // owner tự đăng, không phải admin override).
+      if (requiresProductTerms && !allProductAcksChecked) {
+        setError("Vui lòng tích đủ 3 ô cam kết đăng sản phẩm.")
+        return
+      }
     }
     // Phase 3.6: admin sửa bài hội viên → bắt buộc lý do (validate ở server
     // luôn, ở client chỉ là sớm hiện error).
@@ -428,6 +453,11 @@ function TaoBaiContent({
                     : {}),
                   ...(productReturnPolicy.trim()
                     ? { returnPolicy: productReturnPolicy.trim() }
+                    : {}),
+                  // Cam kết đăng SP — chỉ gửi khi owner tự đăng (admin override
+                  // không gửi → server skip recordTermsAcceptance ở nhánh đó).
+                  ...(requiresProductTerms
+                    ? { termsVersion: PRODUCT_TERMS_VERSION }
                     : {}),
                 },
               }
@@ -845,6 +875,83 @@ function TaoBaiContent({
               </div>
             </div>
           </details>
+
+          {/* Cam kết đăng SP — chỉ hiện khi owner tự đăng (không phải admin
+              đăng hộ). 3 checkbox bắt buộc; submit disabled cho tới khi đủ. */}
+          {requiresProductTerms && (
+            <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-3">
+              <div>
+                <h4 className="text-sm font-semibold text-amber-900">
+                  Cam kết đăng sản phẩm (bắt buộc)
+                </h4>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Tích đủ 3 ô bên dưới để đăng SP. Nội dung đầy đủ tại{" "}
+                  <Link
+                    href={`/dieu-khoan/PRODUCT_LISTING/${PRODUCT_TERMS_VERSION}`}
+                    target="_blank"
+                    rel="noopener"
+                    className="underline font-medium hover:text-amber-950"
+                  >
+                    Cam kết đăng sản phẩm ({PRODUCT_TERMS_VERSION})
+                  </Link>
+                  . Hệ thống lưu kèm SP làm bằng chứng pháp lý.
+                </p>
+              </div>
+
+              <label htmlFor="ack-product-real" className="flex items-start gap-2 cursor-pointer">
+                <input
+                  id="ack-product-real"
+                  type="checkbox"
+                  checked={ackProductReal}
+                  onChange={(e) => setAckProductReal(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded accent-brand-700 shrink-0"
+                />
+                <span className="text-xs text-amber-950 leading-relaxed">
+                  <strong>Sản phẩm có thật.</strong> Tôi xác nhận SP tồn tại
+                  vật lý, thuộc sở hữu hợp pháp của tôi / DN tôi đại diện. Mô
+                  tả, thông số, hình ảnh, giá đăng đúng với SP thực tế.
+                </span>
+              </label>
+
+              <label htmlFor="ack-no-fake" className="flex items-start gap-2 cursor-pointer">
+                <input
+                  id="ack-no-fake"
+                  type="checkbox"
+                  checked={ackNoFake}
+                  onChange={(e) => setAckNoFake(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded accent-brand-700 shrink-0"
+                />
+                <span className="text-xs text-amber-950 leading-relaxed">
+                  <strong>Không phải hàng giả, hàng cấm.</strong> SP không phải
+                  hàng giả/nhái, không vi phạm CITES, không tẩm hoá chất/phun
+                  dầu/nhuộm màu mà không khai báo, không vi phạm sở hữu trí
+                  tuệ của bên thứ ba.
+                </span>
+              </label>
+
+              <label htmlFor="ack-liability" className="flex items-start gap-2 cursor-pointer">
+                <input
+                  id="ack-liability"
+                  type="checkbox"
+                  checked={ackLiability}
+                  onChange={(e) => setAckLiability(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded accent-brand-700 shrink-0"
+                />
+                <span className="text-xs text-amber-950 leading-relaxed">
+                  <strong>Tự chịu trách nhiệm pháp lý.</strong> Tôi tự chịu
+                  toàn bộ trách nhiệm dân sự, hành chính, hình sự (nếu có)
+                  phát sinh từ việc đăng tải và kinh doanh SP này. Hội đóng
+                  vai trò nền tảng kết nối, không phải bên bán hàng.
+                </span>
+              </label>
+
+              {!allProductAcksChecked && (
+                <p className="text-[11px] text-amber-700">
+                  Cần tích đủ <strong>3/3</strong> ô để đăng SP.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -1002,16 +1109,24 @@ function TaoBaiContent({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitting || (!editId && quota?.limit !== -1 && quota?.remaining === 0)}
+            disabled={
+              submitting
+              || (!editId && quota?.limit !== -1 && quota?.remaining === 0)
+              || (requiresProductTerms && !allProductAcksChecked)
+            }
             className={cn(
               "flex items-center gap-2 rounded-lg bg-brand-700 px-5 py-2 text-sm font-semibold text-white transition-colors",
-              submitting || (!editId && quota?.remaining === 0)
+              (submitting
+                || (!editId && quota?.remaining === 0)
+                || (requiresProductTerms && !allProductAcksChecked))
                 ? "opacity-60 cursor-not-allowed"
                 : "hover:bg-brand-800"
             )}
             title={
               !editId && quota?.remaining === 0
                 ? "Đã hết hạn mức tháng này — nâng cấp Hội viên để tăng hạn mức"
+                : requiresProductTerms && !allProductAcksChecked
+                ? "Tích đủ 3 ô cam kết đăng SP để tiếp tục"
                 : undefined
             }
           >

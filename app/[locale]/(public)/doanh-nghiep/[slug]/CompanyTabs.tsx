@@ -11,6 +11,7 @@ import { AgarwoodPlaceholder } from "@/components/ui/AgarwoodPlaceholder"
 import { localize } from "@/i18n/localize"
 import type { Locale } from "@/i18n/config"
 import { CompanyGallery, type GalleryImage } from "./CompanyGallery"
+import { ProductCardMenu } from "./ProductCardMenu"
 
 type Product = {
   id: string
@@ -21,6 +22,11 @@ type Product = {
   priceRange: string | null
   certStatus: string
   badgeUrl: string | null
+  /** Post.id gắn với Product — null cho SP legacy. Menu Xoá ẩn nếu null. */
+  postId: string | null
+  /** Có đơn chứng nhận đang DRAFT/PENDING/UNDER_REVIEW → menu sẽ ẩn item
+   *  "Chứng nhận sản phẩm" để tránh nộp đơn trùng. */
+  hasActiveCert: boolean
 }
 
 export type CompanyNewsItem = {
@@ -54,6 +60,8 @@ type Props = {
   website?: string | null
   postCount: number
   canEdit: boolean
+  /** Tách khỏi canEdit để menu Sửa biết route owner vs admin. */
+  isOwner: boolean
 }
 
 type TabId = "intro" | "products" | "gallery" | "news" | "info"
@@ -74,6 +82,7 @@ export function CompanyTabs({
   website,
   postCount,
   canEdit,
+  isOwner,
 }: Props) {
   const t = useTranslations("companyTabs")
   const locale = useLocale()
@@ -144,31 +153,45 @@ export function CompanyTabs({
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {products.map((product) => (
-                  <Link
-                    key={product.id}
-                    href={`/san-pham/${product.slug}`}
-                    className="group block bg-white border border-brand-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    <div className="relative aspect-square bg-brand-100">
-                      {product.imageUrls.length > 0 ? (
-                        <Image src={product.imageUrls[0]} alt={product.name} fill className="object-cover" sizes="(max-width: 640px) 50vw, 33vw" />
-                      ) : (
-                        <AgarwoodPlaceholder className="w-full h-full" size="md" shape="square" tone="light" />
-                      )}
-                      {product.certStatus === "APPROVED" && (
-                        <span className="absolute top-2 right-2 inline-flex items-center gap-1 bg-brand-500 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md">
-                          {t("certified")}
-                        </span>
-                      )}
-                    </div>
-                    <div className="p-3 space-y-1">
-                      <h3 className="text-sm font-semibold text-brand-900 group-hover:text-brand-700 transition-colors line-clamp-2 leading-snug">
-                        {product.name}
-                      </h3>
-                      {product.category && <p className="text-xs text-brand-500">{product.category}</p>}
-                      {product.priceRange && <p className="text-xs font-medium text-brand-700">{product.priceRange}</p>}
-                    </div>
-                  </Link>
+                  <div key={product.id} className="relative">
+                    <Link
+                      href={`/san-pham/${product.slug}`}
+                      className="group block bg-white border border-brand-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <div className="relative aspect-square bg-brand-100">
+                        {product.imageUrls.length > 0 ? (
+                          <Image src={product.imageUrls[0]} alt={product.name} fill className="object-cover" sizes="(max-width: 640px) 50vw, 33vw" />
+                        ) : (
+                          <AgarwoodPlaceholder className="w-full h-full" size="md" shape="square" tone="light" />
+                        )}
+                        {product.certStatus === "APPROVED" && (
+                          <span className="absolute top-2 right-2 inline-flex items-center gap-1 bg-brand-500 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md">
+                            {t("certified")}
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-3 space-y-1">
+                        <h3 className="text-sm font-semibold text-brand-900 group-hover:text-brand-700 transition-colors line-clamp-2 leading-snug">
+                          {product.name}
+                        </h3>
+                        {product.category && <p className="text-xs text-brand-500">{product.category}</p>}
+                        {product.priceRange && <p className="text-xs font-medium text-brand-700">{product.priceRange}</p>}
+                      </div>
+                    </Link>
+                    {/* Menu Sửa/Xoá/Chứng nhận overlay góc trái-trên — owner/
+                        admin only. Sống ngoài <Link> để click không trigger
+                        navigate vào detail page. */}
+                    {canEdit && (
+                      <ProductCardMenu
+                        productId={product.id}
+                        productSlug={product.slug}
+                        postId={product.postId}
+                        isOwner={isOwner}
+                        certStatus={product.certStatus}
+                        hasActiveCert={product.hasActiveCert}
+                      />
+                    )}
+                  </div>
                 ))}
               </div>
             )}

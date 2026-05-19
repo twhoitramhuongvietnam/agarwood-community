@@ -129,8 +129,10 @@ export function ProductActionsMenu({
     try {
       const res = await fetch(`/api/posts/${post.id}`, { method: "DELETE" })
       if (res.ok) {
-        // Sản phẩm bị cascade xoá theo post (Product.postId onDelete: Cascade)
-        // → trang slug không còn tồn tại, đẩy về danh sách sản phẩm.
+        // DELETE handler soft-delete Post (status=DELETED) + unpublish Product
+        // gắn liền (isPublished=false) trong 1 transaction. SP biến mất khỏi
+        // mọi listing/detail (đều filter isPublished=true). Reversible — có
+        // thể republish sau, không bị wipe ProductRevision/Cert/Comment.
         router.push("/san-pham-chung-nhan")
       } else {
         alert("Xoá thất bại.")

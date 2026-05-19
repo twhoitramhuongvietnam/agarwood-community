@@ -39,9 +39,13 @@ function makeValidator(t: any) {
 
 interface RegisterFormProps {
   accountType: "BUSINESS" | "INDIVIDUAL"
+  /** Trạng thái đồng ý điều khoản — checkbox nằm ở RegisterSection (chung
+   *  cho cả Google + manual). Form disable submit nếu false. */
+  termsAccepted: boolean
+  termsVersion: string
 }
 
-export function RegisterForm({ accountType }: RegisterFormProps) {
+export function RegisterForm({ accountType, termsAccepted, termsVersion }: RegisterFormProps) {
   const t = useTranslations("registerForm")
   const tFields = useTranslations("companyFields")
   const locale = useLocale()
@@ -71,6 +75,11 @@ export function RegisterForm({ accountType }: RegisterFormProps) {
     e.preventDefault()
     setServerError("")
 
+    if (!termsAccepted) {
+      setServerError("Vui lòng tích vào ô đồng ý điều khoản trước khi đăng ký.")
+      return
+    }
+
     const required: (keyof FormState)[] = accountType === "BUSINESS"
       ? ["name", "email", "phone", "companyName", "companyField", "reason"]
       : ["name", "email", "phone", "reason"]
@@ -87,7 +96,7 @@ export function RegisterForm({ accountType }: RegisterFormProps) {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, accountType }),
+        body: JSON.stringify({ ...form, accountType, termsVersion }),
       })
       if (res.ok) {
         setSubmitted(true)
@@ -199,11 +208,16 @@ export function RegisterForm({ accountType }: RegisterFormProps) {
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || !termsAccepted}
         className="w-full rounded-lg bg-brand-700 text-white font-semibold py-3 text-sm hover:bg-brand-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? t("submitting") : t("submitBtn")}
       </button>
+      {!termsAccepted && (
+        <p className="text-xs text-brand-500 text-center -mt-2">
+          Tích vào ô đồng ý điều khoản ở phía trên để gửi đơn.
+        </p>
+      )}
 
       <p className="text-center text-sm text-brand-500">
         {t("hasAccount")}{" "}

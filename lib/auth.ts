@@ -3,9 +3,14 @@ import Credentials from "next-auth/providers/credentials"
 import Google from "next-auth/providers/google"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import bcrypt from "bcryptjs"
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { prisma } from "./prisma"
 import { authConfig } from "./auth.config"
+import {
+  getClientIpFromHeaders,
+  getTermsDocument,
+  recordTermsAcceptance,
+} from "./terms"
 import type { Role, Committee } from "@prisma/client"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -58,17 +63,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return true
         }
 
-        // Đọc cookie `pending_account_type` do GoogleSignUpButton ghi trước khi
-        // redirect sang Google. Nếu không có → mặc định BUSINESS (backward-compat).
+        // Đọc cookie `pending_account_type` + `pending_terms_version` do
+        // GoogleSignUpButton ghi trước khi redirect sang Google. Nếu không có
+        // pending_terms_version → user vào thẳng /api/auth/signin (bypass UI)
+        // hoặc cookie hết hạn — chặn tạo user vì chưa có bằng chứng đồng ý.
         let selectedAccountType: "BUSINESS" | "INDIVIDUAL" = "BUSINESS"
+        let pendingTermsVersion: string | null = null
         try {
           const cookieStore = await cookies()
           const pending = cookieStore.get("pending_account_type")?.value
           if (pending === "INDIVIDUAL" || pending === "BUSINESS") {
             selectedAccountType = pending
           }
+          pendingTermsVersion = cookieStore.get("pending_terms_version")?.value ?? null
         } catch {
           // cookies() có thể không khả dụng trong mọi context — fallback BUSINESS
+        }
+
+        // Bằng chứng đồng ý điều khoản BẮT BUỘC cho user mới — không có cookie
+        // hoặc version không hợp lệ → từ chối sign-in, user phải quay lại trang
+        // đăng ký tick checkbox.
+        if (
+          !pendingTermsVersion ||
+          !getTermsDocument("REGISTRATION", pendingTermsVersion)
+        ) {
+          return false
         }
 
         // Phase 2: tạo user kích hoạt ngay (free tier — post được nhưng quota thấp).
@@ -88,40 +107,66 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               + "-" + Date.now().toString(36)
           : null
 
-        const newUser = await prisma.user.create({
-          data: {
-            email: user.email,
-            name: userName,
-            avatarUrl: user.image ?? null,
-            role: "GUEST",
-            accountType: selectedAccountType,
-            // Phase 3 (Cách A): đơn đăng ký qua Google cũng phải chờ admin duyệt.
-            isActive: false,
-            accounts: {
-              create: {
-                type: account.type,
-                provider: account.provider,
-                providerAccountId: account.providerAccountId,
-                access_token: account.access_token,
-                refresh_token: account.refresh_token,
-                expires_at: account.expires_at,
-                token_type: account.token_type,
-                scope: account.scope,
-                id_token: account.id_token,
-              },
-            },
-            ...(companySlug && {
-              company: {
+        // Lấy IP + UA để ghi vào TermsAcceptance — bằng chứng pháp lý.
+        let acceptanceIp: string | null = null
+        let acceptanceUa: string | null = null
+        try {
+          const reqHeaders = await headers()
+          acceptanceIp = getClientIpFromHeaders(reqHeaders)
+          acceptanceUa = reqHeaders.get("user-agent")
+        } catch {
+          // headers() có thể fail trong vài context — chấp nhận null
+        }
+
+        // Tạo user + TermsAcceptance atomically — fail thì rollback cả 2.
+        const newUser = await prisma.$transaction(async (tx) => {
+          const created = await tx.user.create({
+            data: {
+              email: user.email!,
+              name: userName,
+              avatarUrl: user.image ?? null,
+              role: "GUEST",
+              accountType: selectedAccountType,
+              // Phase 3 (Cách A): đơn đăng ký qua Google cũng phải chờ admin duyệt.
+              isActive: false,
+              accounts: {
                 create: {
-                  name: userName, // tạm lấy tên user, user tự edit sau
-                  slug: companySlug,
-                  description: "",
-                  isVerified: false,
-                  isPublished: false,
+                  type: account.type,
+                  provider: account.provider,
+                  providerAccountId: account.providerAccountId,
+                  access_token: account.access_token,
+                  refresh_token: account.refresh_token,
+                  expires_at: account.expires_at,
+                  token_type: account.token_type,
+                  scope: account.scope,
+                  id_token: account.id_token,
                 },
               },
-            }),
-          },
+              ...(companySlug && {
+                company: {
+                  create: {
+                    name: userName, // tạm lấy tên user, user tự edit sau
+                    slug: companySlug,
+                    description: "",
+                    isVerified: false,
+                    isPublished: false,
+                  },
+                },
+              }),
+            },
+          })
+          await recordTermsAcceptance(
+            {
+              userId: created.id,
+              type: "REGISTRATION",
+              version: pendingTermsVersion!,
+              ipAddress: acceptanceIp,
+              userAgent: acceptanceUa,
+              contextRef: null,
+            },
+            tx,
+          )
+          return created
         })
 
         // Notify admin

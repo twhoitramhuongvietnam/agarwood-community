@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { revalidateTag } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import { auth } from "@/lib/auth"
 import { isAdmin } from "@/lib/roles"
 import { prisma } from "@/lib/prisma"
@@ -120,7 +120,14 @@ export async function DELETE(
   const { id } = await params
   const post = await prisma.post.findUnique({
     where: { id },
-    select: { authorId: true },
+    select: {
+      authorId: true,
+      // Nếu Post gắn với 1 Product (category=PRODUCT) → soft-delete Post phải
+      // kéo theo unpublish Product, vì cascade hard-delete không chạy với
+      // soft-delete. Không unpublish → product page + listing vẫn hiển thị
+      // dù bài đã "xoá" khỏi feed, gây bug "xoá không xoá".
+      product: { select: { id: true, slug: true } },
+    },
   })
 
   if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -128,13 +135,27 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  await prisma.post.update({
-    where: { id },
-    data: { status: "DELETED" },
+  await prisma.$transaction(async (tx) => {
+    await tx.post.update({
+      where: { id },
+      data: { status: "DELETED" },
+    })
+    if (post.product) {
+      await tx.product.update({
+        where: { id: post.product.id },
+        data: { isPublished: false },
+      })
+    }
   })
 
   revalidateTag("feed", "max")
   // Soft-delete giảm quota count → invalidate cache để UI hiện số mới ngay.
   revalidateTag(`quota:${post.authorId}`, "max")
+  if (post.product) {
+    // Trang chi tiết SP (revalidate=3600) + 2 listing chứa SP → flush ngay.
+    revalidatePath(`/san-pham/${post.product.slug}`)
+    revalidatePath("/san-pham-doanh-nghiep")
+    revalidatePath("/san-pham-chung-nhan")
+  }
   return NextResponse.json({ success: true })
 }

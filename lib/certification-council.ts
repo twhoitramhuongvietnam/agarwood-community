@@ -37,6 +37,11 @@ export async function assignCouncil(certId: string, reviewerIds: string[]) {
     if (cert.status !== "PENDING") {
       throw new CouncilError("Chỉ chỉ định hội đồng khi đơn ở trạng thái PENDING")
     }
+    if (cert.reviewMode === "FAST_TRACK") {
+      throw new CouncilError(
+        "Đơn FAST_TRACK không qua HĐTĐ — dùng API approve/reject trực tiếp",
+      )
+    }
     if (reviewerIds.includes(cert.applicantId)) {
       throw new CouncilError("Người nộp đơn không thể tham gia hội đồng thẩm định chính đơn của mình")
     }
@@ -129,6 +134,110 @@ type VoteResult =
   | { finalDecision: null }
   | { finalDecision: "REJECTED" }
   | { finalDecision: "APPROVED"; certCode: string }
+
+/**
+ * Approve FAST_TRACK — admin endorse dựa trên CN nhà nước đã đính kèm.
+ * Không cần HĐTĐ, single-admin action. certExpiredAt = null = TRỌN ĐỜI.
+ * Sinh certCode tuần tự như flow vote bình thường.
+ */
+export async function approveFastTrack(
+  certId: string,
+  adminUserId: string,
+  reviewNote?: string,
+): Promise<{ certCode: string }> {
+  return prisma.$transaction(async (tx) => {
+    const cert = await tx.certification.findUnique({ where: { id: certId } })
+    if (!cert) throw new CouncilError("Không tìm thấy đơn", 404)
+    if (cert.reviewMode !== "FAST_TRACK") {
+      throw new CouncilError(
+        "Chỉ approve trực tiếp đơn FAST_TRACK — đơn ONLINE/OFFLINE phải qua HĐTĐ",
+      )
+    }
+    if (cert.status !== "PENDING") {
+      throw new CouncilError("Chỉ approve đơn đang ở trạng thái PENDING")
+    }
+    if (!cert.govCertNumber || !cert.govCertIssuer) {
+      throw new CouncilError(
+        "Đơn FAST_TRACK thiếu thông tin CN nhà nước — không thể endorse",
+      )
+    }
+
+    const now = new Date()
+    const year = now.getFullYear()
+    const approvedCount = await tx.certification.count({
+      where: { status: "APPROVED", approvedAt: { gte: new Date(`${year}-01-01`) } },
+    })
+    const certCode = `HTHVN-${year}-${String(approvedCount + 1).padStart(4, "0")}`
+
+    await tx.certification.update({
+      where: { id: certId },
+      data: {
+        status: "APPROVED",
+        approvedAt: now,
+        reviewedAt: now,
+        reviewedBy: adminUserId,
+        reviewNote: reviewNote?.trim() || null,
+        certCode,
+      },
+    })
+    await tx.product.update({
+      where: { id: cert.productId },
+      data: {
+        certStatus: "APPROVED",
+        certApprovedAt: now,
+        // TRỌN ĐỜI — null = không expire. Verify page + product detail
+        // dùng null check để hiển thị "Trọn đời" thay vì ngày hết hạn.
+        certExpiredAt: null,
+        badgeUrl: "/badge-chung-nhan.png",
+      },
+    })
+    return { certCode }
+  })
+}
+
+/**
+ * Reject FAST_TRACK — admin từ chối endorse (vd giấy gốc giả mạo, hết hiệu lực,
+ * không đúng SP). Đơn → REJECTED → flow refund như ONLINE/OFFLINE.
+ */
+export async function rejectFastTrack(
+  certId: string,
+  adminUserId: string,
+  reviewNote: string,
+): Promise<void> {
+  const trimmedNote = reviewNote.trim()
+  if (!trimmedNote) {
+    throw new CouncilError("Bắt buộc ghi lý do khi từ chối endorse FAST_TRACK")
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const cert = await tx.certification.findUnique({ where: { id: certId } })
+    if (!cert) throw new CouncilError("Không tìm thấy đơn", 404)
+    if (cert.reviewMode !== "FAST_TRACK") {
+      throw new CouncilError(
+        "Chỉ reject trực tiếp đơn FAST_TRACK — đơn ONLINE/OFFLINE phải qua HĐTĐ",
+      )
+    }
+    if (cert.status !== "PENDING") {
+      throw new CouncilError("Chỉ reject đơn đang ở trạng thái PENDING")
+    }
+
+    const now = new Date()
+    await tx.certification.update({
+      where: { id: certId },
+      data: {
+        status: "REJECTED",
+        rejectedAt: now,
+        reviewedAt: now,
+        reviewedBy: adminUserId,
+        reviewNote: trimmedNote,
+      },
+    })
+    await tx.product.update({
+      where: { id: cert.productId },
+      data: { certStatus: "REJECTED" },
+    })
+  })
+}
 
 export async function castVote(
   certId: string,

@@ -2,9 +2,11 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { notFound } from "next/navigation"
 import Link from "next/link"
+import DOMPurify from "isomorphic-dompurify"
 import { CertActionPanel } from "./CertActionPanel"
 import { AssignCouncilForm } from "./AssignCouncilForm"
 import { ReviewProgress } from "./ReviewProgress"
+import { FastTrackPanel } from "./FastTrackPanel"
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -54,13 +56,18 @@ export default async function CertReviewPage({ params }: Props) {
 
   if (!cert) notFound()
 
+  // FAST_TRACK đơn không qua HĐTĐ → không cần candidates. Chỉ ONLINE/OFFLINE
+  // mới load list thẩm định viên.
+  const isFastTrack = cert.reviewMode === "FAST_TRACK"
+
   // Load candidate council members:
   //  - PENDING + chưa có reviews: dùng cho AssignCouncilForm (chỉ định lần đầu).
   //  - UNDER_REVIEW: dùng cho ReplaceReviewerButton (đổi reviewer chưa vote) — loại
   //    bỏ 5 reviewer hiện tại để admin chỉ thấy người khả dụng.
   const needsCandidates =
-    (cert.status === "PENDING" && cert.reviews.length === 0) ||
-    cert.status === "UNDER_REVIEW"
+    !isFastTrack &&
+    ((cert.status === "PENDING" && cert.reviews.length === 0) ||
+      cert.status === "UNDER_REVIEW")
   const excludedIds = [cert.applicantId, ...cert.reviews.map((r) => r.reviewer.id)]
   const candidates = needsCandidates
     ? await prisma.user.findMany({
@@ -104,19 +111,29 @@ export default async function CertReviewPage({ params }: Props) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Danh mục</p>
-                <p className="font-medium">
+                <p className="font-medium text-brand-900">
                   {cert.product.category ?? "—"}
                 </p>
               </div>
               <div className="col-span-2">
                 <p className="text-xs text-muted-foreground">Mô tả</p>
-                <p className="text-brand-800 whitespace-pre-wrap">
-                  {cert.product.description ?? "—"}
-                </p>
+                {cert.product.description ? (
+                  // Description lưu HTML (từ RichTextEditor) — render qua prose
+                  // + sanitize. Trước đây render plain text với whitespace-pre-wrap
+                  // làm các tag <p>/<h2>/... lộ raw ra admin UI.
+                  <div
+                    className="prose prose-sm prose-brand max-w-none text-brand-800"
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(cert.product.description),
+                    }}
+                  />
+                ) : (
+                  <p className="text-brand-400 italic">—</p>
+                )}
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Doanh nghiệp</p>
-                <p className="font-medium">
+                <p className="font-medium text-brand-900">
                   {cert.product.company?.name ?? "—"}
                 </p>
               </div>
@@ -128,10 +145,16 @@ export default async function CertReviewPage({ params }: Props) {
                   className={`inline-flex items-center rounded-full px-2.5 py-1 text-sm font-medium ${
                     cert.reviewMode === "ONLINE"
                       ? "bg-blue-100 text-blue-700"
-                      : "bg-orange-100 text-orange-700"
+                      : cert.reviewMode === "OFFLINE"
+                        ? "bg-orange-100 text-orange-700"
+                        : "bg-emerald-100 text-emerald-700"
                   }`}
                 >
-                  {cert.reviewMode === "ONLINE" ? "Online" : "Offline"}
+                  {cert.reviewMode === "ONLINE"
+                    ? "Online (HĐTĐ — 1 năm)"
+                    : cert.reviewMode === "OFFLINE"
+                      ? "Offline (HĐTĐ — 1 năm)"
+                      : "Fast-track (Endorse CN nhà nước — trọn đời)"}
                 </span>
               </div>
               {cert.reviewMode === "ONLINE" && cert.productSalePrice != null && (
@@ -236,13 +259,52 @@ export default async function CertReviewPage({ params }: Props) {
 
         {/* Right Column — 40% */}
         <div className="lg:col-span-2 space-y-4">
-          {/* PENDING + chưa chỉ định: hiển thị form chỉ định hội đồng */}
-          {cert.status === "PENDING" && cert.reviews.length === 0 && (
-            <AssignCouncilForm certId={cert.id} candidates={candidates} />
+          {/* FAST_TRACK + PENDING: single-admin endorse panel (không qua HĐTĐ) */}
+          {isFastTrack && cert.status === "PENDING" && (
+            <FastTrackPanel
+              certId={cert.id}
+              govCertNumber={cert.govCertNumber}
+              govCertIssuer={cert.govCertIssuer}
+              govCertIssuedAt={cert.govCertIssuedAt}
+              documentUrls={cert.documentUrls}
+            />
           )}
 
+          {/* FAST_TRACK + APPROVED: hiện summary endorsement (không có vote list) */}
+          {isFastTrack && cert.status === "APPROVED" && (
+            <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-6 shadow-sm space-y-2">
+              <h2 className="text-base font-bold text-emerald-900">
+                ✓ Đã endorse trọn đời
+              </h2>
+              <p className="text-sm text-emerald-800">
+                Mã: <strong className="font-mono">{cert.certCode}</strong>
+              </p>
+              {cert.approvedAt && (
+                <p className="text-xs text-emerald-700">
+                  Cấp ngày {new Date(cert.approvedAt).toLocaleString("vi-VN")}
+                </p>
+              )}
+              {cert.reviewNote && (
+                <div className="pt-2 border-t border-emerald-200">
+                  <p className="text-xs font-medium text-emerald-700">Ghi chú admin</p>
+                  <p className="text-sm text-emerald-900 whitespace-pre-wrap">
+                    {cert.reviewNote}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ONLINE/OFFLINE: HĐTĐ flow */}
+          {/* PENDING + chưa chỉ định: hiển thị form chỉ định hội đồng */}
+          {!isFastTrack &&
+            cert.status === "PENDING" &&
+            cert.reviews.length === 0 && (
+              <AssignCouncilForm certId={cert.id} candidates={candidates} />
+            )}
+
           {/* UNDER_REVIEW / APPROVED / REJECTED: tiến độ vote + nhận xét */}
-          {cert.reviews.length > 0 && (
+          {!isFastTrack && cert.reviews.length > 0 && (
             <ReviewProgress
               certId={cert.id}
               status={cert.status}

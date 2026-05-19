@@ -60,6 +60,7 @@ export const ROUTE_MENU_MAP: Entry[] = [
   { prefix: "/phap-ly", menuKey: null },
   { prefix: "/privacy", menuKey: null },
   { prefix: "/terms", menuKey: null },
+  { prefix: "/dieu-khoan", menuKey: null },
   { prefix: "/khao-sat", menuKey: null },
   { prefix: "/banner", menuKey: null },
   { prefix: "/verify", menuKey: null },
