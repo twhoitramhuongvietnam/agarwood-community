@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation"
 import type { Metadata } from "next"
 import Link from "next/link"
 import Image from "next/image"
-import { sanitizeArticleHtml } from "@/lib/sanitize"
 import { getLocale, getTranslations } from "next-intl/server"
 import { localize } from "@/i18n/localize"
 import type { Locale } from "@/i18n/config"
@@ -224,7 +223,9 @@ export default async function ResearchDetailPage({ params }: Props) {
   const authorUrl = author ? localizedUrl(`/thanh-vien/${author.id}`, locale) : BASE_URL
 
   // Inject H2 anchor IDs + extract TOC; rewrite Cloudinary URLs trong body.
-  const sanitizedContent = sanitizeArticleHtml(l(news, "content") ?? "")
+  // Content đã sanitize lúc lưu (api/admin/news + news-auto-translate). Không
+  // sanitize lại lúc render để tránh load jsdom (rất nặng CPU) mỗi cold start.
+  const sanitizedContent = l(news, "content") ?? ""
   const optimizedContent = rewriteCloudinaryInHtml(sanitizedContent, 1024)
   const contentWithAnchors = addAnchorIdsToH2(optimizedContent)
 

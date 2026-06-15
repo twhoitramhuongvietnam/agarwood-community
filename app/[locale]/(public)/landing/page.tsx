@@ -5,7 +5,8 @@ import { getLocale, getTranslations } from "next-intl/server"
 import type { Locale } from "@/i18n/config"
 import { getTierThresholds } from "@/lib/tier"
 
-export const revalidate = 600
+// 30 phút: nội dung landing tĩnh, không cần làm mới thường xuyên → giảm regen.
+export const revalidate = 1800
 
 export async function generateMetadata() {
   const t = await getTranslations("landing")

@@ -28,3 +28,28 @@ export const getMemberQrDataUrl = unstable_cache(
   ["member-qr"],
   { revalidate: 86400, tags: ["member-qr"] },
 )
+
+/**
+ * QR cho thẻ hội viên BẢN IN (errorCorrectionLevel "H", 512px) — to & chống lỗi
+ * cao hơn bản list. Trang /hoi-vien/[id]/the-in dùng getLocale() (đọc header)
+ * nên bị ép dynamic → không ISR được; nếu gen QR mỗi request thì raster "H"/512
+ * tốn ~15-30ms CPU/lần. Cache deterministic theo (memberId, siteUrl) → chỉ gen
+ * một lần, mọi request sau lấy lại từ cache.
+ */
+export const getMemberCardQrDataUrl = unstable_cache(
+  async (memberId: string, siteUrl: string): Promise<string | null> => {
+    const verifyUrl = `${siteUrl}/hoi-vien/${memberId}`
+    try {
+      return await QRCode.toDataURL(verifyUrl, {
+        errorCorrectionLevel: "H",
+        margin: 1,
+        width: 512,
+        color: { dark: "#000", light: "#fff" },
+      })
+    } catch {
+      return null
+    }
+  },
+  ["member-card-qr"],
+  { revalidate: 86400, tags: ["member-qr"] },
+)

@@ -2,7 +2,6 @@ import { cache, Suspense } from "react"
 import { notFound, redirect } from "next/navigation"
 import type { Metadata } from "next"
 import Link from "next/link"
-import { sanitizeArticleHtml } from "@/lib/sanitize"
 import { getLocale, getTranslations } from "next-intl/server"
 import { localize } from "@/i18n/localize"
 import type { Locale } from "@/i18n/config"
@@ -258,7 +257,9 @@ export default async function NewsDetailPage({ params }: Props) {
   // Also rewrite any Cloudinary URLs in the body to include width limit +
   // f_auto + q_auto — saves bandwidth for readers on mobile since the
   // content HTML can't use Next.js Image.
-  const sanitizedContent = sanitizeArticleHtml(l(news, "content") ?? "")
+  // Content đã sanitize lúc lưu (api/admin/news + news-auto-translate). Không
+  // sanitize lại lúc render để tránh load jsdom (rất nặng CPU) mỗi cold start.
+  const sanitizedContent = l(news, "content") ?? ""
   const optimizedContent = rewriteCloudinaryInHtml(sanitizedContent, 1024)
   const contentWithAnchors = addAnchorIdsToH2(optimizedContent)
 

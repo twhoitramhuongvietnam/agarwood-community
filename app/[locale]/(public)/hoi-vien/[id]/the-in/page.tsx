@@ -1,8 +1,8 @@
 import { getLocale, getTranslations } from "next-intl/server"
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import QRCode from "qrcode"
 import { prisma } from "@/lib/prisma"
+import { getMemberCardQrDataUrl } from "@/lib/memberQrCache"
 import { calcTier, getTierThresholds } from "@/lib/tier"
 import { generateMemberCardId, tierFromRole } from "@/lib/memberCard"
 import { MemberCardFront } from "@/components/features/member-card/MemberCardFront"
@@ -77,17 +77,8 @@ export default async function PrintMemberCardPage({
   const verifyUrl = `${SITE_URL}/hoi-vien/${member.id}`
   const tier = tierFromRole(member.role, tierInfo.stars)
 
-  let qrDataUrl: string | null = null
-  try {
-    qrDataUrl = await QRCode.toDataURL(verifyUrl, {
-      errorCorrectionLevel: "H",
-      margin: 1,
-      width: 512,
-      color: { dark: "#000", light: "#fff" },
-    })
-  } catch {
-    /* ignore */
-  }
+  // QR cache deterministic (memberId, siteUrl) — không re-gen mỗi request.
+  const qrDataUrl = await getMemberCardQrDataUrl(member.id, SITE_URL)
 
   const frontData = {
     name: member.name,

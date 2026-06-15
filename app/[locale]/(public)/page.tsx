@@ -35,7 +35,9 @@ export async function generateMetadata() {
   }
 }
 
-export const revalidate = 300
+// 30 phút: homepage không cần real-time; cron warm-homepage (23:00) giữ ấm
+// cache. Giảm tần suất regen → giảm cold-start CPU (route tốn CPU cao nhất).
+export const revalidate = 1800
 
 export default async function HomePage() {
   // auth() resolved tại parent để JoinBanner render đồng bộ — tránh stream-in

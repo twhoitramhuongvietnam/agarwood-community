@@ -1,14 +1,20 @@
 import { getRequestConfig } from "next-intl/server"
 import { headers } from "next/headers"
 import { defaultLocale, isValidLocale, type Locale } from "./config"
-import vi from "@/messages/vi.json"
-import en from "@/messages/en.json"
-import zh from "@/messages/zh.json"
-import ar from "@/messages/ar.json"
 
-// Static-imported messages: bundled at build time, no per-request async load.
-// Lookup is O(1) and avoids the dynamic import() overhead each render path.
-const messages: Record<Locale, typeof vi> = { vi, en, zh, ar }
+// Lazy per-locale loaders. Mỗi import() là 1 chunk riêng → cold start CHỈ parse
+// đúng 1 ngôn ngữ request cần (~70KB) thay vì cả 4 file (~270KB) như khi import
+// tĩnh. Cắt chi phí CPU cố định của cold start trên MỌI route. Module namespace
+// được runtime cache sau lần đầu nên warm request không chịu thêm cost.
+type MessagesShape = typeof import("@/messages/vi.json")
+// Turbopack runtime trả module namespace `{ default: <json> }`; TS lại type
+// JSON import là object trần. Union + narrowing bên dưới an toàn cả hai dạng.
+const loaders: Record<Locale, () => Promise<{ default: MessagesShape } | MessagesShape>> = {
+  vi: () => import("@/messages/vi.json"),
+  en: () => import("@/messages/en.json"),
+  zh: () => import("@/messages/zh.json"),
+  ar: () => import("@/messages/ar.json"),
+}
 
 export default getRequestConfig(async ({ requestLocale }) => {
   // Ưu tiên explicit locale do caller truyền vào (vd
@@ -27,8 +33,10 @@ export default getRequestConfig(async ({ requestLocale }) => {
     locale = headerLocale && isValidLocale(headerLocale) ? headerLocale : defaultLocale
   }
 
+  const loaded = await loaders[locale]()
+  const messages = "default" in loaded ? loaded.default : loaded
   return {
     locale,
-    messages: messages[locale],
+    messages,
   }
 })
