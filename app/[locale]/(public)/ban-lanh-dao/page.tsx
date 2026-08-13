@@ -9,6 +9,40 @@ import { LeaderSectionGrid, type LeaderCardData, type LeaderSection } from "./Le
 
 export const revalidate = 600
 
+function InitialsAvatar({ name }: { name: string }) {
+  const initials = name.split(" ").map((w) => w[0]).slice(-2).join("").toUpperCase()
+  return (
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-700 text-sm font-bold text-white">
+      {initials}
+    </div>
+  )
+}
+
+/** Ban chuyên môn trực thuộc (AffiliatedUnit type=BAN) — không gắn nhiệm kỳ
+ *  BCH nên hiển thị cố định bên dưới, không lọc theo `term`. */
+const getBanTrucThuoc = unstable_cache(
+  () =>
+    prisma.affiliatedUnit.findMany({
+      where: { type: "BAN", isActive: true },
+      orderBy: [{ sortOrder: "asc" }],
+      select: {
+        id: true,
+        name: true, name_en: true, name_zh: true, name_ar: true,
+        description: true, description_en: true, description_zh: true, description_ar: true,
+        members: {
+          orderBy: { sortOrder: "asc" },
+          select: {
+            id: true,
+            name: true, name_en: true, name_zh: true, name_ar: true,
+            title: true, title_en: true, title_zh: true, title_ar: true,
+          },
+        },
+      },
+    }),
+  ["ban-lanh-dao_ban-truc-thuoc"],
+  { revalidate: 600, tags: ["affiliated-units"] },
+)
+
 /** Leaders thay đổi chậm (admin CRUD), cache 10 phút. */
 const getAllActiveLeaders = unstable_cache(
   () =>
@@ -51,7 +85,10 @@ export default async function LeadershipPage({
     getLocale() as Promise<Locale>,
   ])
 
-  const allLeaders = await getAllActiveLeaders()
+  const [allLeaders, banTrucThuoc] = await Promise.all([
+    getAllActiveLeaders(),
+    getBanTrucThuoc(),
+  ])
 
   const terms = [...new Set(allLeaders.map((l) => l.term))]
   const selectedTerm = params.term ?? terms[0] ?? null
@@ -112,6 +149,52 @@ export default async function LeadershipPage({
           )}
 
           <LeaderSectionGrid sections={sections} />
+
+          {/* Ban chuyên môn trực thuộc — cố định, không theo nhiệm kỳ BCH */}
+          {banTrucThuoc.length > 0 && (
+            <div className="mt-14 space-y-14">
+              {banTrucThuoc.map((unit) => {
+                const unitName = l(unit, "name") ?? unit.name
+                const unitDesc = l(unit, "description")
+                return (
+                  <section key={unit.id}>
+                    <header className="mb-6 text-center">
+                      <h2 className="text-xl font-bold text-brand-900 sm:text-2xl">
+                        {unitName}
+                      </h2>
+                      <p className="mt-1 text-sm text-brand-500">
+                        {unitDesc || t("banTrucThuocDesc")}
+                      </p>
+                    </header>
+                    {unit.members.length > 0 && (
+                      <div className="grid gap-6 max-w-4xl mx-auto sm:grid-cols-2 lg:grid-cols-3">
+                        {unit.members.map((member) => {
+                          const memberName = l(member, "name") ?? member.name
+                          const memberTitle = l(member, "title") ?? member.title
+                          return (
+                            <div
+                              key={member.id}
+                              className="flex items-center gap-4 rounded-xl border border-brand-200 bg-white p-4 shadow-sm"
+                            >
+                              <InitialsAvatar name={memberName} />
+                              <div className="min-w-0">
+                                <h3 className="font-bold text-brand-900 text-sm truncate">
+                                  {memberName}
+                                </h3>
+                                <p className="mt-0.5 text-xs font-medium text-amber-700">
+                                  {memberTitle}
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </section>
+                )
+              })}
+            </div>
+          )}
 
           {/* Back link */}
           <div className="mt-10 text-center">

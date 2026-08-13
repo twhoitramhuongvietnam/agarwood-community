@@ -35,6 +35,7 @@
     "products": "Sản phẩm chứng nhận",
     "about": "Giới thiệu",
     "leadership": "Ban lãnh đạo",
+    "chiHoi": "Chi hội trực thuộc",
     "members": "Hội viên",
     "legalDocs": "Văn bản pháp lý",
     "charter": "Điều lệ",
@@ -626,6 +627,16 @@
     "bchLabel": "Ủy viên Ban Chấp hành",
     "bchDesc": "Thành viên Ban Chấp hành tham gia quyết định các vấn đề quan trọng",
     "memberCount": "{count} thành viên Ban Chấp hành",
+    "banTrucThuocDesc": "Ban chuyên môn trực thuộc Hội",
+    "backToAbout": "← Về trang Giới thiệu"
+  },
+  "chiHoi": {
+    "metaTitle": "Chi hội trực thuộc — Hội Trầm Hương Việt Nam",
+    "metaDesc": "Danh sách các chi hội khu vực trực thuộc Hội Trầm Hương Việt Nam.",
+    "pageTitle": "Chi hội trực thuộc",
+    "subtitle": "Hội Trầm Hương Việt Nam (VAWA)",
+    "emptyState": "Chưa có chi hội nào được công bố.",
+    "noMembersYet": "Chưa cập nhật danh sách thành viên.",
     "backToAbout": "← Về trang Giới thiệu"
   },
   "about": {

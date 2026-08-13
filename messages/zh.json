@@ -35,6 +35,7 @@
     "products": "认证产品",
     "about": "关于我们",
     "leadership": "领导层",
+    "chiHoi": "下属分会",
     "members": "会员",
     "legalDocs": "法律文件",
     "charter": "协会章程",
@@ -626,6 +627,16 @@
     "bchLabel": "执行委员会委员",
     "bchDesc": "参与重要事项决策的委员会成员",
     "memberCount": "{count} 名执行委员会成员",
+    "banTrucThuocDesc": "协会下属专业委员会",
+    "backToAbout": "← 返回关于我们"
+  },
+  "chiHoi": {
+    "metaTitle": "分会 — 越南沉香协会",
+    "metaDesc": "越南沉香协会下属各地区分会名录。",
+    "pageTitle": "下属分会",
+    "subtitle": "越南沉香协会 (VAWA)",
+    "emptyState": "暂未公布任何分会。",
+    "noMembersYet": "成员名单尚未更新。",
     "backToAbout": "← 返回关于我们"
   },
   "about": {

@@ -170,6 +170,11 @@ export async function SiteFooter() {
               </Link>
             </li>
             <li>
+              <Link href="/chi-hoi" className="hover:text-white hover:underline">
+                {tNav("chiHoi")}
+              </Link>
+            </li>
+            <li>
               <Link href="/tin-tuc" className="hover:text-white hover:underline">
                 {tNav("news")}
               </Link>

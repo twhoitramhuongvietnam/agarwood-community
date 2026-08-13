@@ -1418,6 +1418,70 @@ enum LeaderCategory {
 }
 
 // ============================================================
+// AFFILIATED UNIT — Chi hội khu vực + Ban chuyên môn trực thuộc Hội
+//
+// Khác Leader/Committee (gắn với nhiệm kỳ BCH trung ương + hệ thống phân
+// quyền): đây thuần là danh mục hiển thị công khai (tên đơn vị + danh sách
+// thành viên kèm chức vụ, free-text). Không có migration quyền hạn, không
+// liên kết CommitteeMembership — admin CRUD trực tiếp qua /admin/chi-hoi.
+// ============================================================
+
+enum AffiliatedUnitType {
+  CHI_HOI // Chi hội khu vực — vd "Chi hội trầm hương khu vực Bình Phước"
+  BAN // Ban chuyên môn trực thuộc — vd "Ban Nghiên cứu và Phát triển trầm hương"
+}
+
+model AffiliatedUnit {
+  id   String             @id @default(cuid())
+  type AffiliatedUnitType
+
+  name    String
+  name_en String?
+  name_zh String?
+  name_ar String?
+
+  description    String? @db.Text
+  description_en String? @db.Text
+  description_zh String? @db.Text
+  description_ar String? @db.Text
+
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  members AffiliatedUnitMember[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type, isActive, sortOrder])
+  @@map("affiliated_units")
+}
+
+model AffiliatedUnitMember {
+  id     String         @id @default(cuid())
+  unitId String
+  unit   AffiliatedUnit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  name    String
+  name_en String?
+  name_zh String?
+  name_ar String?
+
+  title    String // chức vụ trong đơn vị — vd "Chi hội trưởng", "Phó Chi hội trưởng", "Thành viên"
+  title_en String?
+  title_zh String?
+  title_ar String?
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([unitId, sortOrder])
+  @@map("affiliated_unit_members")
+}
+
+// ============================================================
 // MEMBERSHIP APPLICATION — Đơn xin kết nạp Hội viên
 // Theo Điều lệ Hội, Điều 11: BCH xét hồ sơ → Chủ tịch quyết định trong 30 ngày
 // ============================================================

@@ -35,6 +35,7 @@
     "products": "Certified Products",
     "about": "About",
     "leadership": "Leadership",
+    "chiHoi": "Local Chapters",
     "members": "Members",
     "legalDocs": "Legal Documents",
     "charter": "Charter",
@@ -626,6 +627,16 @@
     "bchLabel": "Executive Board Members",
     "bchDesc": "Board members participating in key decision-making",
     "memberCount": "{count} Executive Board members",
+    "banTrucThuocDesc": "Specialized board under the Association",
+    "backToAbout": "← Back to About"
+  },
+  "chiHoi": {
+    "metaTitle": "Local Chapters — Vietnam Agarwood Association",
+    "metaDesc": "Directory of regional chapters under the Vietnam Agarwood Association.",
+    "pageTitle": "Local Chapters",
+    "subtitle": "Vietnam Agarwood Association (VAWA)",
+    "emptyState": "No chapters have been published yet.",
+    "noMembersYet": "Member list not yet updated.",
     "backToAbout": "← Back to About"
   },
   "about": {

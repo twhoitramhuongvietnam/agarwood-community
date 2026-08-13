@@ -21,6 +21,7 @@ import {
   Scale,
   Globe,
   Crown,
+  Landmark,
   ClipboardList,
   Headset,
   Handshake,
@@ -101,6 +102,7 @@ export const ADMIN_NAV_GROUPS: NavGroup[] = [
       { label: "Đơn đăng ký", href: "/admin/hoi-vien?status=registration", icon: UserPlus, pendingKey: "newRegistration", requiredPerm: "member:approve" },
       { label: "Đơn kết nạp", href: "/admin/hoi-vien/don-ket-nap", icon: FileCheck, pendingKey: "membershipApplication", requiredPerm: "member:approve" },
       { label: "Ban lãnh đạo", href: "/admin/ban-lanh-dao", icon: Crown },
+      { label: "Chi hội & Ban trực thuộc", href: "/admin/chi-hoi", icon: Landmark },
     ],
   },
   {
