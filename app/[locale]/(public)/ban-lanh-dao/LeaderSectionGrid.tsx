@@ -53,16 +53,7 @@ export function LeaderSectionGrid({ sections }: { sections: LeaderSection[] }) {
               <p className="mt-1 text-sm text-brand-500">{description}</p>
             </header>
 
-            <div
-              className={cn(
-                "grid gap-6 max-w-5xl mx-auto",
-                category === "BTV"
-                  ? "sm:grid-cols-2 lg:grid-cols-3"
-                  : category === "BKT"
-                    ? "sm:grid-cols-2 max-w-2xl"
-                    : "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
-              )}
-            >
+            <div className="grid gap-6 max-w-5xl mx-auto sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {members.map((leader) => (
                 <button
                   key={leader.id}

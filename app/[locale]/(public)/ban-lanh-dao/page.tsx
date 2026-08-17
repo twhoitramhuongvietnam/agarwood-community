@@ -167,7 +167,7 @@ export default async function LeadershipPage({
                       </p>
                     </header>
                     {unit.members.length > 0 && (
-                      <div className="grid gap-6 max-w-4xl mx-auto sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="grid gap-6 max-w-5xl mx-auto sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {unit.members.map((member) => {
                           const memberName = l(member, "name") ?? member.name
                           const memberTitle = l(member, "title") ?? member.title
