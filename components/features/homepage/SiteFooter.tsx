@@ -7,7 +7,7 @@ import { localize } from "@/i18n/localize"
 import type { Locale } from "@/i18n/config"
 import { getStaticTexts } from "@/lib/static-texts"
 
-// Fetch Chủ tịch + Phó CT + TTK + CVP cho cột "Lãnh đạo Hội".
+// Fetch Chủ tịch + Phó CT + TTK + CVP + Trưởng Ban Kiểm tra cho cột "Lãnh đạo Hội".
 // Match title bằng regex vì admin nhập free-text (đồng bộ cách Footer v1 đang làm).
 const getLeadership = unstable_cache(
   async () =>
@@ -18,6 +18,7 @@ const getLeadership = unstable_cache(
           { title: { contains: "Chủ tịch", mode: "insensitive" } },
           { title: { contains: "Tổng Thư ký", mode: "insensitive" } },
           { title: { contains: "Chánh Văn Phòng", mode: "insensitive" } },
+          { title: { contains: "Trưởng Ban Kiểm tra", mode: "insensitive" } },
         ],
       },
       orderBy: [{ sortOrder: "asc" }],
@@ -65,9 +66,16 @@ export async function SiteFooter() {
     .slice(0, 3)
   const tongThuKy = leaders.find((l) => /Tổng Thư ký/i.test(l.title))
   const chanhVanPhong = leaders.find((l) => /Chánh Văn Phòng/i.test(l.title))
+  const truongBanKiemTra = leaders.find((l) =>
+    /Trưởng Ban Kiểm tra/i.test(l.title),
+  )
 
   const hasLeadership =
-    chuTich || phoChuTich.length > 0 || tongThuKy || chanhVanPhong
+    chuTich ||
+    phoChuTich.length > 0 ||
+    tongThuKy ||
+    chanhVanPhong ||
+    truongBanKiemTra
 
   return (
     <footer className="bg-brand-900 text-neutral-200">
@@ -142,6 +150,14 @@ export async function SiteFooter() {
                     {t("chiefOfOffice")}
                   </span>
                   <span>{lName(chanhVanPhong)}</span>
+                </li>
+              )}
+              {truongBanKiemTra && (
+                <li>
+                  <span className="block text-[11px] uppercase tracking-wide text-neutral-400">
+                    {t("headOfInspectionCommittee")}
+                  </span>
+                  <span>{lName(truongBanKiemTra)}</span>
                 </li>
               )}
             </ul>
