@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
@@ -118,8 +118,15 @@ export function LeaderManager({
   const router = useRouter()
   const readOnly = useAdminReadOnly()
   const [leaders, setLeaders] = useState(initialLeaders)
-  const [terms] = useState(initialTerms)
-  const [selectedTerm, setSelectedTerm] = useState(terms[0] ?? "")
+  // Derive từ `leaders` (không snapshot cứng initialTerms) — nhiệm kỳ mới
+  // gõ vào form "Nhiệm kỳ" hiện tag filter ngay sau khi lưu, không cần
+  // reload cả trang (router.refresh() không remount client component nên
+  // useState(initialTerms) trước đây bị stale).
+  const terms = useMemo(
+    () => Array.from(new Set(leaders.map((l) => l.term))),
+    [leaders],
+  )
+  const [selectedTerm, setSelectedTerm] = useState(initialTerms[0] ?? "")
   const [filterCat, setFilterCat] = useState<LeaderCategory | "ALL">("ALL")
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState<FormData>(EMPTY_FORM)
@@ -244,6 +251,9 @@ export function LeaderManager({
         if (!res.ok) throw new Error("Failed to create")
         const created = await res.json()
         setLeaders((prev) => [...prev, created])
+        // Nhảy sang tab nhiệm kỳ vừa lưu — quan trọng khi admin gõ 1 nhiệm
+        // kỳ mới chưa từng có, để thấy ngay thành viên vừa tạo.
+        setSelectedTerm(created.term)
       } else {
         const res = await fetch(`/api/admin/leaders/${editing}`, {
           method: "PATCH",
@@ -255,6 +265,9 @@ export function LeaderManager({
         setLeaders((prev) =>
           prev.map((l) => (l.id === updated.id ? updated : l)),
         )
+        // Nếu admin đổi nhiệm kỳ của thành viên này, nhảy theo để không
+        // có cảm giác thành viên "biến mất" khỏi tab đang xem.
+        setSelectedTerm(updated.term)
       }
       cancel()
       router.refresh()
