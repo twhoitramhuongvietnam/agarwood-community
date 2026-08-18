@@ -111,7 +111,11 @@ export function MembersScrollV2({
 
       <div className="members-scroll">
         {filtered.length > 0 ? (
-          <div className="members-grid reveal">
+          // Không dùng "reveal": khối này unmount/remount theo kết quả tìm
+          // kiếm (filtered.length chuyển 0 ↔ >0) — reveal-on-scroll IO chỉ
+          // quét DOM 1 lần lúc mount trang nên bản remount sau sẽ kẹt
+          // opacity:0 vĩnh viễn. Xem thêm ghi chú tương tự ở LeadershipTabsV2.
+          <div className="members-grid">
             {filtered.map((m, i) => (
               <Link
                 key={m.id}

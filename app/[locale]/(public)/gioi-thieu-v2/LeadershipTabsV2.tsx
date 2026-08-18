@@ -310,16 +310,22 @@ export function LeadershipTabsV2({ leaders }: { leaders: LeaderItem[] }) {
         ))}
       </div>
 
-      {currentTerm && <div className="term-label reveal">{currentTerm}</div>}
+      {/* Không dùng class "reveal" trong các khối bên dưới: IntersectionObserver
+          ở HeroAnimations.tsx chỉ quét DOM 1 lần lúc mount trang. Các khối này
+          unmount/remount mỗi khi đổi tab (vd tab không có ai giữ chức Chủ tịch
+          thì chairman-row biến mất rồi tạo lại) → phần tử mới tạo sau không
+          còn ai observe → kẹt vĩnh viễn ở opacity:0 (class .reveal mặc định),
+          nhìn như khoảng trống sau khi bấm đổi tab vài lần. */}
+      {currentTerm && <div className="term-label">{currentTerm}</div>}
 
       {chairman && (
-        <div className="chairman-row reveal">
+        <div className="chairman-row">
           <LeaderCard leader={chairman} featured onClick={() => setSelected(chairman)} />
         </div>
       )}
 
       {vicePresidents.length > 0 && (
-        <div className="leader-grid reveal">
+        <div className="leader-grid">
           {vicePresidents.map((l) => (
             <LeaderCard key={l.id} leader={l} onClick={() => setSelected(l)} />
           ))}
@@ -329,11 +335,11 @@ export function LeadershipTabsV2({ leaders }: { leaders: LeaderItem[] }) {
       {memberLeaders.length > 0 && (
         <>
           {(chairman || vicePresidents.length > 0) && (
-            <div className="leader-divider reveal">
+            <div className="leader-divider">
               {activeTab === "BTV" ? t("dividerStanding") : t("dividerOther")}
             </div>
           )}
-          <div className="leader-grid reveal">
+          <div className="leader-grid">
             {memberLeaders.map((l) => (
               <LeaderCard key={l.id} leader={l} onClick={() => setSelected(l)} />
             ))}
