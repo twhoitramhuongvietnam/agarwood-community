@@ -103,7 +103,7 @@ export default async function PrintMemberCardPage({
   }
 
   return (
-    <div className="bg-brand-50 min-h-screen py-10">
+    <div className="bg-brand-50 min-h-screen py-10 print:min-h-0 print:bg-white print:py-0">
       {/* Controls — ẩn khi in */}
       <div className="max-w-4xl mx-auto px-4 mb-8 print:hidden">
         <h1 className="text-2xl font-bold text-brand-900 mb-2">
@@ -130,7 +130,8 @@ export default async function PrintMemberCardPage({
         </div>
       </div>
 
-      {/* Print area — 2 thẻ cách nhau, khi in mỗi thẻ 1 trang */}
+      {/* Print area — on-screen 2 thẻ cách nhau (space-y-8); khi in xếp
+          sát nhau (print:space-y-0) để gộp chung 1 trang PDF cao 108mm */}
       <div className="max-w-xl mx-auto px-4 space-y-8 print:space-y-0 print:max-w-none print:mx-0 print:px-0">
         {/* Front */}
         <div className="print-card-page">
@@ -143,7 +144,7 @@ export default async function PrintMemberCardPage({
         </div>
 
         {/* Back */}
-        <div className="print-card-page page-break-before">
+        <div className="print-card-page">
           <div className="mx-auto" style={{ width: "85.6mm" }}>
             <MemberCardBack
               tier={tier}
@@ -162,11 +163,13 @@ export default async function PrintMemberCardPage({
         </div>
       </div>
 
-      {/* Print-specific CSS — set trang đúng kích thước CR80, không margin */}
+      {/* Print-specific CSS — gộp mặt trước + mặt sau (mỗi mặt CR80
+          85.6×54mm, xếp dọc sát nhau nhờ print:space-y-0 ở trên) vào
+          đúng 1 trang PDF cao 108mm, không trang thừa, không chrome. */}
       <style>{`
         @media print {
           @page {
-            size: 85.6mm 54mm;
+            size: 85.6mm 108mm;
             margin: 0;
           }
           html, body {
@@ -177,9 +180,6 @@ export default async function PrintMemberCardPage({
           .print-card-page {
             page-break-inside: avoid;
             margin: 0 !important;
-          }
-          .page-break-before {
-            page-break-before: always;
           }
         }
       `}</style>

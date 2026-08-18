@@ -47,17 +47,27 @@ export default function PublicLayout({
       data-page="public"
       className={`${inter.variable} ${merriweather.variable} min-h-screen bg-white`}
     >
-      <SiteHeader />
+      {/* print:hidden — trang in thẻ hội viên (/hoi-vien/[id]/the-in) và mọi
+          trang khác dùng window.print() không nên in kèm chrome của web. */}
+      <div className="print:hidden">
+        <SiteHeader />
+      </div>
       <main className="flex-1">{children}</main>
-      <Suspense fallback={<SiteFooterSkeleton />}>
-        <SiteFooter />
-      </Suspense>
-      <BackToTop />
+      <div className="print:hidden">
+        <Suspense fallback={<SiteFooterSkeleton />}>
+          <SiteFooter />
+        </Suspense>
+      </div>
+      <div className="print:hidden">
+        <BackToTop />
+      </div>
       {/* Floating badge "Đăng ký thành viên" — guest only, gate ở server.
           Per-page dismiss (state reset khi đổi pathname). */}
-      <Suspense fallback={null}>
-        <JoinFloatingBadge />
-      </Suspense>
+      <div className="print:hidden">
+        <Suspense fallback={null}>
+          <JoinFloatingBadge />
+        </Suspense>
+      </div>
     </div>
   )
 }

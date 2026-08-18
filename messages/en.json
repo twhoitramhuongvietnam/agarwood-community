@@ -1107,7 +1107,7 @@
   "printCard": {
     "title": "Print Member Card",
     "pageHeading": "Print Member Card — {name}",
-    "instructions": "The card is rendered at CR80 size (85.6 × 54mm). Press \"Print\" → choose your printer with landscape A4 paper or specialty ID card stock. The two sides print on two consecutive pages — select \"Two-sided\" in the dialog to align correctly.",
+    "instructions": "The card is rendered at CR80 size (85.6 × 108mm, both sides combined). Press \"Print\" → choose your printer with A4 paper or specialty ID card stock. Both sides are already combined on a single page — no need to select two-sided printing.",
     "printButton": "🖨️ Print card",
     "back": "← Back",
     "guideTitle": "📐 CR80 print guide",

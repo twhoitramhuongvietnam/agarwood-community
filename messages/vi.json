@@ -1107,7 +1107,7 @@
   "printCard": {
     "title": "In thẻ Hội viên",
     "pageHeading": "In thẻ Hội viên — {name}",
-    "instructions": "Thẻ được render đúng kích thước CR80 (85.6 × 54mm). Bấm \"In\" → chọn máy in, giấy khổ A4 ngang hoặc giấy thẻ chuyên dụng. Hai mặt sẽ in trên 2 trang liên tiếp — chọn \"In 2 mặt\" ở hộp thoại để ghép đúng.",
+    "instructions": "Thẻ được render đúng kích thước CR80 (85.6 × 108mm, gồm cả 2 mặt). Bấm \"In\" → chọn máy in, giấy khổ A4 hoặc giấy thẻ chuyên dụng. Cả 2 mặt đã được gộp chung 1 trang — không cần chọn in 2 mặt.",
     "printButton": "🖨️ In thẻ",
     "back": "← Quay lại",
     "guideTitle": "📐 Hướng dẫn in chuẩn CR80",
