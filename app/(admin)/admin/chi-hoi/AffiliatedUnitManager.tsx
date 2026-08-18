@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
@@ -148,6 +148,36 @@ export function AffiliatedUnitManager({ initialUnits }: { initialUnits: Unit[] }
   // không lưu userId (không phải quan hệ lâu dài như Leader), nên không cần
   // khôi phục lại khi mở sửa 1 thành viên đã lưu.
   const [pickedMemberUser, setPickedMemberUser] = useState<UserSummary | null>(null)
+  const [memberPhotoUploading, setMemberPhotoUploading] = useState(false)
+  const [memberPhotoError, setMemberPhotoError] = useState("")
+  const memberPhotoInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleMemberPhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      setMemberPhotoError("Ảnh quá lớn (tối đa 5MB).")
+      if (memberPhotoInputRef.current) memberPhotoInputRef.current.value = ""
+      return
+    }
+    setMemberPhotoUploading(true)
+    setMemberPhotoError("")
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("folder", "affiliated-units")
+      const res = await fetch("/api/upload", { method: "POST", body: fd })
+      if (!res.ok) throw new Error("upload-failed")
+      const data = await res.json()
+      const url = data.secure_url ?? data.url
+      setMemberForm((prev) => ({ ...prev, photoUrl: url }))
+    } catch {
+      setMemberPhotoError("Tải ảnh thất bại. Vui lòng thử lại.")
+    } finally {
+      setMemberPhotoUploading(false)
+      if (memberPhotoInputRef.current) memberPhotoInputRef.current.value = ""
+    }
+  }
 
   function toggleExpanded(unitId: string) {
     setExpanded((prev) => {
@@ -570,16 +600,50 @@ export function AffiliatedUnitManager({ initialUnits }: { initialUnits: Unit[] }
               className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
-          <div>
+          <div className="sm:col-span-2">
             <label className="block text-xs font-medium text-muted-foreground mb-1">
-              URL ảnh đại diện
+              Ảnh đại diện
             </label>
+            <div className="flex items-center gap-3">
+              <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full border border-brand-200 bg-brand-100">
+                {memberForm.photoUrl ? (
+                  <Image
+                    src={memberForm.photoUrl}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="44px"
+                  />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center text-sm font-bold text-brand-500">
+                    ?
+                  </span>
+                )}
+              </div>
+              <input
+                ref={memberPhotoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleMemberPhotoUpload}
+                disabled={memberPhotoUploading || readOnly}
+                className="text-xs text-brand-600 file:mr-3 file:rounded-md file:border-0 file:bg-brand-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-brand-800 hover:file:bg-brand-200 disabled:opacity-50"
+              />
+            </div>
+            <div className="mt-1 flex items-center gap-3 text-[11px]">
+              {memberPhotoUploading && (
+                <span className="italic text-brand-500">Đang tải lên...</span>
+              )}
+              {memberPhotoError && <span className="text-red-600">{memberPhotoError}</span>}
+              {!memberPhotoUploading && !memberPhotoError && (
+                <span className="text-brand-400">Tối đa 5MB. JPG/PNG/WebP.</span>
+              )}
+            </div>
             <input
               type="text"
               value={memberForm.photoUrl}
               onChange={(e) => setMemberForm({ ...memberForm, photoUrl: e.target.value })}
-              placeholder="https://..."
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="…hoặc dán URL ảnh có sẵn"
+              className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
           <div>
