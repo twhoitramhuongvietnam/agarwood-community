@@ -130,9 +130,10 @@ export default async function PrintMemberCardPage({
         </div>
       </div>
 
-      {/* Print area — on-screen 2 thẻ cách nhau (space-y-8); khi in xếp
-          sát nhau (print:space-y-0) để gộp chung 1 trang PDF cao 108mm */}
-      <div className="max-w-xl mx-auto px-4 space-y-8 print:space-y-0 print:max-w-none print:mx-0 print:px-0">
+      {/* Print area — on-screen 2 thẻ cách nhau (space-y-8); khi in vẫn
+          chừa khoảng cách 6mm (print:space-y-[6mm]) để dễ phân biệt/cắt,
+          nhưng gộp chung 1 trang PDF cao 114mm (54+54+6) thay vì 2 trang */}
+      <div className="max-w-xl mx-auto px-4 space-y-8 print:space-y-[6mm] print:max-w-none print:mx-0 print:px-0">
         {/* Front */}
         <div className="print-card-page">
           <div className="mx-auto" style={{ width: "85.6mm" }}>
@@ -164,12 +165,15 @@ export default async function PrintMemberCardPage({
       </div>
 
       {/* Print-specific CSS — gộp mặt trước + mặt sau (mỗi mặt CR80
-          85.6×54mm, xếp dọc sát nhau nhờ print:space-y-0 ở trên) vào
-          đúng 1 trang PDF cao 108mm, không trang thừa, không chrome. */}
+          85.6×54mm, cách nhau 6mm nhờ print:space-y-[6mm] ở trên) vào
+          đúng 1 trang PDF cao 114mm, không trang thừa, không chrome.
+          print-color-adjust: exact — Chrome mặc định bỏ qua background-color
+          khi in để tiết kiệm mực, khiến màu nền theo tier (vàng/bạc/đen)
+          của thẻ bị mất, chỉ còn border. Bắt buộc giữ nguyên màu. */}
       <style>{`
         @media print {
           @page {
-            size: 85.6mm 108mm;
+            size: 85.6mm 114mm;
             margin: 0;
           }
           html, body {
@@ -180,6 +184,11 @@ export default async function PrintMemberCardPage({
           .print-card-page {
             page-break-inside: avoid;
             margin: 0 !important;
+          }
+          .print-card-page, .print-card-page * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
           }
         }
       `}</style>
