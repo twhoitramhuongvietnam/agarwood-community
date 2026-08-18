@@ -6,6 +6,7 @@ import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { useAdminReadOnly, READ_ONLY_TOOLTIP } from "@/components/features/admin/AdminReadOnlyContext"
 import { LangTabsBar, computeHasContent, type Locale } from "@/components/ui/lang-tabs-bar"
+import { UserPicker, type UserSummary } from "../ban-lanh-dao/UserPicker"
 
 type UnitType = "CHI_HOI" | "BAN"
 
@@ -143,6 +144,10 @@ export function AffiliatedUnitManager({ initialUnits }: { initialUnits: Unit[] }
   const [editingMember, setEditingMember] = useState<string | null>(null) // "new" | memberId
   const [memberForm, setMemberForm] = useState<MemberFormData>(EMPTY_MEMBER_FORM)
   const [memberLocale, setMemberLocale] = useState<Locale>("vi")
+  // Chỉ dùng để "lấy nhanh" tên/avatar từ hội viên có sẵn — AffiliatedUnitMember
+  // không lưu userId (không phải quan hệ lâu dài như Leader), nên không cần
+  // khôi phục lại khi mở sửa 1 thành viên đã lưu.
+  const [pickedMemberUser, setPickedMemberUser] = useState<UserSummary | null>(null)
 
   function toggleExpanded(unitId: string) {
     setExpanded((prev) => {
@@ -257,6 +262,20 @@ export function AffiliatedUnitManager({ initialUnits }: { initialUnits: Unit[] }
     setEditingMember("new")
     setMemberForm(EMPTY_MEMBER_FORM)
     setMemberLocale("vi")
+    setPickedMemberUser(null)
+  }
+
+  /** Chọn 1 hội viên từ UserPicker → tự điền tên (nếu đang trống) + avatar
+   *  (nếu đang trống) vào form. Không lưu quan hệ userId — chỉ "lấy nhanh"
+   *  dữ liệu có sẵn, admin vẫn sửa tự do sau đó. */
+  function handlePickMemberUser(user: UserSummary | null) {
+    setPickedMemberUser(user)
+    if (!user) return
+    setMemberForm((prev) => ({
+      ...prev,
+      name: prev.name.trim() ? prev.name : user.name,
+      photoUrl: prev.photoUrl.trim() ? prev.photoUrl : (user.avatarUrl ?? prev.photoUrl),
+    }))
   }
 
   function startEditMember(unitId: string, m: Member) {
@@ -275,11 +294,13 @@ export function AffiliatedUnitManager({ initialUnits }: { initialUnits: Unit[] }
       sortOrder: m.sortOrder,
     })
     setMemberLocale("vi")
+    setPickedMemberUser(null)
   }
 
   function cancelMember() {
     setMemberUnitId(null)
     setEditingMember(null)
+    setPickedMemberUser(null)
     setMemberForm(EMPTY_MEMBER_FORM)
   }
 
@@ -493,6 +514,20 @@ export function AffiliatedUnitManager({ initialUnits }: { initialUnits: Unit[] }
     }
     return (
       <div className="rounded-lg border border-brand-200 bg-white p-4 space-y-3">
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground mb-1">
+            Lấy nhanh từ hội viên (tuỳ chọn)
+          </label>
+          <UserPicker
+            value={pickedMemberUser}
+            onChange={handlePickMemberUser}
+            disabled={readOnly}
+            unlinkLabel="Bỏ chọn"
+            unlinkTitle="Bỏ chọn hội viên (không xoá tên/avatar đã điền)"
+            placeholder="Tìm hội viên theo tên hoặc email..."
+            hint="Chọn 1 hội viên để tự điền tên + avatar — chỉ để lấy nhanh dữ liệu có sẵn, không tạo liên kết lâu dài. Vẫn sửa được tự do sau khi chọn."
+          />
+        </div>
         <LangTabsBar
           activeLocale={memberLocale}
           onLocaleChange={setMemberLocale}

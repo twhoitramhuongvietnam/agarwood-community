@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils"
  *  - Empty state: hint "Leave blank for external leader"
  */
 
-type UserSummary = {
+export type UserSummary = {
   id: string
   name: string
   email: string
