@@ -1472,6 +1472,8 @@ model AffiliatedUnitMember {
   title_zh String?
   title_ar String?
 
+  photoUrl String?
+
   sortOrder Int @default(0)
 
   createdAt DateTime @default(now())

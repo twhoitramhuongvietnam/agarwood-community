@@ -27,6 +27,7 @@ export async function PATCH(
       ...("title_en" in body && { title_en: body.title_en || null }),
       ...("title_zh" in body && { title_zh: body.title_zh || null }),
       ...("title_ar" in body && { title_ar: body.title_ar || null }),
+      ...(body.photoUrl !== undefined && { photoUrl: body.photoUrl || null }),
       ...(body.sortOrder !== undefined && { sortOrder: body.sortOrder }),
     },
   })

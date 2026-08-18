@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { useAdminReadOnly, READ_ONLY_TOOLTIP } from "@/components/features/admin/AdminReadOnlyContext"
 import { LangTabsBar, computeHasContent, type Locale } from "@/components/ui/lang-tabs-bar"
@@ -18,6 +19,7 @@ type Member = {
   title_en: string | null
   title_zh: string | null
   title_ar: string | null
+  photoUrl: string | null
   sortOrder: number
 }
 
@@ -59,6 +61,7 @@ type MemberFormData = {
   title_en: string
   title_zh: string
   title_ar: string
+  photoUrl: string
   sortOrder: number
 }
 
@@ -84,6 +87,7 @@ const EMPTY_MEMBER_FORM: MemberFormData = {
   title_en: "",
   title_zh: "",
   title_ar: "",
+  photoUrl: "",
   sortOrder: 0,
 }
 
@@ -267,6 +271,7 @@ export function AffiliatedUnitManager({ initialUnits }: { initialUnits: Unit[] }
       title_en: m.title_en ?? "",
       title_zh: m.title_zh ?? "",
       title_ar: m.title_ar ?? "",
+      photoUrl: m.photoUrl ?? "",
       sortOrder: m.sortOrder,
     })
     setMemberLocale("vi")
@@ -532,6 +537,18 @@ export function AffiliatedUnitManager({ initialUnits }: { initialUnits: Unit[] }
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">
+              URL ảnh đại diện
+            </label>
+            <input
+              type="text"
+              value={memberForm.photoUrl}
+              onChange={(e) => setMemberForm({ ...memberForm, photoUrl: e.target.value })}
+              placeholder="https://..."
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
               Thứ tự hiển thị
             </label>
             <input
@@ -701,6 +718,21 @@ export function AffiliatedUnitManager({ initialUnits }: { initialUnits: Unit[] }
                               key={m.id}
                               className="flex items-center gap-3 rounded-lg border border-border bg-background p-2.5"
                             >
+                              <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-brand-100">
+                                {m.photoUrl ? (
+                                  <Image
+                                    src={m.photoUrl}
+                                    alt={m.name}
+                                    fill
+                                    className="object-cover"
+                                    sizes="32px"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center bg-brand-700 text-white font-bold text-xs">
+                                    {m.name.split(" ").map((w) => w[0]).slice(-2).join("")}
+                                  </div>
+                                )}
+                              </div>
                               <div className="flex-1 min-w-0">
                                 <span className="text-sm font-medium text-foreground">
                                   {m.name}

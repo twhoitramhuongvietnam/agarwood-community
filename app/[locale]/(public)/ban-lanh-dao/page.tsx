@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import { unstable_cache } from "next/cache"
 import { prisma } from "@/lib/prisma"
 import { cn } from "@/lib/utils"
@@ -9,7 +10,14 @@ import { LeaderSectionGrid, type LeaderCardData, type LeaderSection } from "./Le
 
 export const revalidate = 600
 
-function InitialsAvatar({ name }: { name: string }) {
+function MemberAvatar({ name, photoUrl }: { name: string; photoUrl: string | null }) {
+  if (photoUrl) {
+    return (
+      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-brand-100">
+        <Image src={photoUrl} alt={name} fill className="object-cover" sizes="48px" />
+      </div>
+    )
+  }
   const initials = name.split(" ").map((w) => w[0]).slice(-2).join("").toUpperCase()
   return (
     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-700 text-sm font-bold text-white">
@@ -35,6 +43,7 @@ const getBanTrucThuoc = unstable_cache(
             id: true,
             name: true, name_en: true, name_zh: true, name_ar: true,
             title: true, title_en: true, title_zh: true, title_ar: true,
+            photoUrl: true,
           },
         },
       },
@@ -176,7 +185,7 @@ export default async function LeadershipPage({
                               key={member.id}
                               className="flex items-center gap-4 rounded-xl border border-brand-200 bg-white p-4 shadow-sm"
                             >
-                              <InitialsAvatar name={memberName} />
+                              <MemberAvatar name={memberName} photoUrl={member.photoUrl} />
                               <div className="min-w-0">
                                 <h3 className="font-bold text-brand-900 text-sm truncate">
                                   {memberName}

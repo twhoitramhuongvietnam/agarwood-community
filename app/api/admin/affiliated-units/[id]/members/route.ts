@@ -15,7 +15,7 @@ export async function POST(
 
   const { id: unitId } = await params
   const body = await req.json()
-  const { name, name_en, name_zh, name_ar, title, title_en, title_zh, title_ar, sortOrder } = body
+  const { name, name_en, name_zh, name_ar, title, title_en, title_zh, title_ar, photoUrl, sortOrder } = body
 
   if (!name || !title) {
     return NextResponse.json({ error: "name và title là bắt buộc" }, { status: 400 })
@@ -32,6 +32,7 @@ export async function POST(
       title_en: title_en || null,
       title_zh: title_zh || null,
       title_ar: title_ar || null,
+      photoUrl: photoUrl || null,
       sortOrder: sortOrder ?? 0,
     },
   })
