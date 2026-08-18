@@ -183,7 +183,6 @@ export default async function PrintMemberCardPage({
           }
           .print-card-page {
             page-break-inside: avoid;
-            margin: 0 !important;
           }
           .print-card-page, .print-card-page * {
             -webkit-print-color-adjust: exact !important;
