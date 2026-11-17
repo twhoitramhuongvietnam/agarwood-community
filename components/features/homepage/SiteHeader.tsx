@@ -136,36 +136,13 @@ export async function SiteHeader() {
               <p className="hidden text-[10px] font-bold uppercase tracking-[0.2em] text-brand-700 sm:block">
                 Vietnam Agarwood Association
               </p>
-              {/* H1 + badge overlay — Phase 3.7 (2026-04). Badge position
-                  absolute đè lên phần đuôi H1; vùng trắng opaque quanh badge
-                  PNG blend tự nhiên với masthead bg-white → nhìn như badge
-                  "dán" lên title. Mobile ẩn (chật), từ sm trở lên show. */}
-              <div className="relative">
-                <h1 className="truncate pr-2 text-base font-black uppercase tracking-tight text-brand-900 sm:mt-0.5 sm:pr-28 sm:text-2xl lg:pr-40 lg:text-[26px]">
-                  {siteName}
-                </h1>
-                {/* Desktop badge — anchor vào H1 wrapper (đè title). */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/badge_demo.png"
-                  alt="Phiên bản đang thử nghiệm"
-                  className="pointer-events-none absolute hidden h-14 w-auto bg-white sm:block sm:-top-6 sm:-right-[35px] lg:-top-10 lg:h-20"
-                  title="Phiên bản đang thử nghiệm — vui lòng đóng góp ý kiến để hoàn thiện"
-                />
-              </div>
+              <h1 className="truncate pr-2 text-base font-black uppercase tracking-tight text-brand-900 sm:mt-0.5 sm:text-2xl lg:text-[26px]">
+                {siteName}
+              </h1>
               <p className="mt-0.5 hidden text-[11px] text-neutral-500 sm:block">
                 {tCommon("officialTagline")}
               </p>
             </div>
-            {/* Mobile-only badge — anchor vào <Link> (logo block) corner.
-                sm+ ẩn vì desktop dùng badge khác đè title. Phase 3.7 (2026-04). */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/badge_demo.png"
-              alt="Phiên bản đang thử nghiệm"
-              className="pointer-events-none absolute -top-[15px] -right-[35px] h-8 w-auto bg-white sm:hidden"
-              title="Phiên bản đang thử nghiệm — vui lòng đóng góp ý kiến để hoàn thiện"
-            />
           </Link>
 
           {/* UserMenu — phía phải masthead, đối xứng với logo Hội.
